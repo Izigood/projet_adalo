@@ -10,3 +10,4 @@ tools/gate-tests/.tmp/
 .DS_Store
 sbom.cdx.json
 .claude/launch.json
+packages/project-schema/generated

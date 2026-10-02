@@ -166,6 +166,34 @@ const cases: readonly Case[] = [
     good: 'export const value = 1;\n',
   },
   {
+    name: 'Ajv import in the project-schema build scripts stays allowed (ADR-0027)',
+    rule: 'no-restricted-imports',
+    bad: "import { Ajv } from 'ajv';\nexport const ajv = new Ajv();\n",
+    good: "import { Ajv } from 'ajv';\nexport const ajv = new Ajv();\n",
+    file: 'packages/project-schema/scripts/generate-validators.ts',
+  },
+  {
+    name: 'Ajv import under project-schema src',
+    rule: 'no-restricted-imports',
+    bad: "import { Ajv } from 'ajv';\nexport const ajv = new Ajv();\n",
+    good: 'export const value = 1;\n',
+    file: 'packages/project-schema/src/validate.ts',
+  },
+  {
+    name: 'Ajv import in the scripts folder of another package',
+    rule: 'no-restricted-imports',
+    bad: "import { Ajv } from 'ajv';\nexport const ajv = new Ajv();\n",
+    good: 'export const value = 1;\n',
+    file: 'packages/domain/scripts/generate.ts',
+  },
+  {
+    name: 'Lit unsafeHTML in the project-schema build scripts',
+    rule: 'no-restricted-imports',
+    bad: "import { unsafeHTML } from 'lit/directives/unsafe-html.js';\nexport const directive = unsafeHTML;\n",
+    good: 'export const value = 1;\n',
+    file: 'packages/project-schema/scripts/generate-validators.ts',
+  },
+  {
     name: 'Ajv runtime helpers imported by generated standalone validators stay allowed',
     rule: 'no-restricted-imports',
     bad: "import equal from 'ajv/dist/runtime/equal';\nexport const same = equal;\n",
@@ -178,6 +206,7 @@ const ALLOWED = new Set([
   'export default stays allowed in tool configuration files',
   'localStorage in the interface preferences module',
   'localStorage in a TSX file of the preferences module',
+  'Ajv import in the project-schema build scripts stays allowed (ADR-0027)',
   'Ajv runtime helpers imported by generated standalone validators stay allowed',
 ]);
 

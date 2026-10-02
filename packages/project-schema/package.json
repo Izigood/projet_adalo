@@ -15,8 +15,11 @@
     "@sinclair/typebox": "0.34.52"
   },
   "devDependencies": {
+    "@types/node": "^24.19.0",
+    "ajv": "^8.20.0",
     "fast-check": "^4.10.2",
     "typescript": "^5.9.3",
+    "vite-node": "^3.2.4",
     "vitest": "^3.2.4"
   }
 }

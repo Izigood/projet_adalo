@@ -10,3 +10,4 @@ LISEZMOI-KIT.md
 .claude
 sbom.cdx.json
 tools/gate-tests/.tmp
+packages/project-schema/generated

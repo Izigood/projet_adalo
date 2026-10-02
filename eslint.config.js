@@ -43,6 +43,26 @@ const UNSAFE_LIT_PATTERNS = [
   'lit-html/directives/unsafe-svg*',
 ];
 
+/** `ajv: false` lifts only the Ajv restriction; the Lit directives stay forbidden everywhere. */
+function restrictedImports({ ajv }) {
+  return [
+    'error',
+    {
+      paths: ajv
+        ? AJV_COMPILING_ENTRIES.map((name) => ({
+            name,
+            message:
+              'Ajv runtime compilation is forbidden (CSP, no new Function). Use generated standalone validators.',
+          }))
+        : [],
+      patterns: UNSAFE_LIT_PATTERNS.map((group) => ({
+        group: [group],
+        message: 'Lit unsafeHTML/unsafeSVG directives are forbidden.',
+      })),
+    },
+  ];
+}
+
 export default tseslint.config(
   {
     ignores: [
@@ -52,6 +72,8 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       'tools/gate-tests/.tmp/**',
+      // Generated at build time by packages/project-schema/scripts (ADR-0027).
+      'packages/project-schema/generated/**',
     ],
   },
   js.configs.recommended,
@@ -76,20 +98,7 @@ export default tseslint.config(
           message: LOCAL_STORAGE_MESSAGE,
         })),
       ],
-      'no-restricted-imports': [
-        'error',
-        {
-          paths: AJV_COMPILING_ENTRIES.map((name) => ({
-            name,
-            message:
-              'Ajv runtime compilation is forbidden (CSP, no new Function). Use generated standalone validators.',
-          })),
-          patterns: UNSAFE_LIT_PATTERNS.map((group) => ({
-            group: [group],
-            message: 'Lit unsafeHTML/unsafeSVG directives are forbidden.',
-          })),
-        },
-      ],
+      'no-restricted-imports': restrictedImports({ ajv: true }),
     },
   },
   {
@@ -103,6 +112,14 @@ export default tseslint.config(
     ],
     rules: {
       'no-restricted-syntax': ['error', ...DYNAMIC_HTML_SINKS],
+    },
+  },
+  {
+    // Build-time generation of the standalone validators is the only legitimate use of Ajv
+    // (ADR-0027). Nothing under `src` may import it.
+    files: ['packages/project-schema/scripts/**/*.ts'],
+    rules: {
+      'no-restricted-imports': restrictedImports({ ajv: false }),
     },
   },
   {
