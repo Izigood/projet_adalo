@@ -13,7 +13,15 @@ import {
   Sha256Hex,
   Uuid7,
 } from './keys.js';
-import { SecretRef } from './project.js';
+import {
+  AssetPath,
+  Project,
+  ProjectVersion,
+  SecretRef,
+  Theme,
+  ThemeTokenValue,
+  ThemeTokens,
+} from './project.js';
 
 /**
  * Every schema compiled into a standalone validator, by name. `scripts/generate-validators.ts`
@@ -45,7 +53,14 @@ export const SCHEMAS = {
   Relation,
   FilterSpec,
   Query,
+  // Project
   SecretRef,
+  Project,
+  ProjectVersion,
+  ThemeTokenValue,
+  ThemeTokens,
+  AssetPath,
+  Theme,
 } as const;
 
 export type SchemaName = keyof typeof SCHEMAS;

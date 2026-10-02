@@ -46,7 +46,20 @@ export {
 } from './data-model.js';
 export { ChoiceSource, FIELD_TYPES, Field, FieldUi, FieldValidator, FileOptions } from './field.js';
 export type { FieldType } from './field.js';
-export { SecretRef } from './project.js';
+export {
+  ASSET_PATH_PATTERN,
+  AssetPath,
+  Project,
+  ProjectVersion,
+  STORAGE_MODES,
+  SecretRef,
+  THEME_TOKEN_NAME_PATTERN,
+  THEME_TOKEN_VALUE_PATTERN,
+  Theme,
+  ThemeTokenValue,
+  ThemeTokens,
+  VERSION_STATUSES,
+} from './project.js';
 export { SCHEMAS } from './schemas.js';
 export type { SchemaName } from './schemas.js';
 export { JsonValueSchema, STRICT, discriminated, ref, stringEnum } from './schema-kit.js';
