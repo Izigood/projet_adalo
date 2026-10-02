@@ -66,6 +66,11 @@ export function migrateV0ToV1(
   const issues: Found[] = [];
   const report = (path: string, keyword: string, message: string) =>
     issues.push({ file: 'project.json', path, keyword, message, params: {} });
+  /** Identifiers must be unique among their kind: a second use would silently merge two objects. */
+  const firstUse = (seen: Set<string>, id: string, path: string, what: string) => {
+    if (seen.has(id)) report(path, 'duplicate', `${what} id ${id} is used twice`);
+    seen.add(id);
+  };
 
   const doc = (files['project.json'] ?? {}) as Json;
   const text = (source: unknown, key: string, path: string): string => {
@@ -115,6 +120,7 @@ export function migrateV0ToV1(
     if (entityIds.has(legacyId))
       report(`/entities/${e}/id`, 'duplicate', `entity id ${legacyId} is used twice`);
     entityIds.set(legacyId, context.newId(`entity:${legacyId}`));
+    const fieldIds = new Set<string>();
     return {
       legacyId,
       id: entityIds.get(legacyId) as string,
@@ -125,11 +131,13 @@ export function migrateV0ToV1(
         const type = text(field, 'type', path);
         if (type !== '' && !(type in FIELD_TYPES))
           report(`${path}/type`, 'enum', `unknown field type ${type}`);
+        const fieldId = text(field, 'id', path);
+        firstUse(fieldIds, fieldId, `${path}/id`, 'field');
         return {
           source: field,
           path,
           type,
-          legacyId: text(field, 'id', path),
+          legacyId: fieldId,
           key: text(field, 'name', path),
           label: text(field, 'title', path),
         };
@@ -151,8 +159,10 @@ export function migrateV0ToV1(
     }
   }
 
+  const relationIds = new Set<string>();
   const relations = list(doc, 'relations', '').map((relation, r) => {
     const path = `/relations/${r}`;
+    firstUse(relationIds, text(relation, 'id', path), `${path}/id`, 'relation');
     const kind = text(relation, 'kind', path);
     if (kind !== '' && !(kind in RELATION_KINDS))
       report(`${path}/kind`, 'enum', `unknown relation kind ${kind}`);
@@ -169,9 +179,11 @@ export function migrateV0ToV1(
   if (screenSources.length === 0 && Array.isArray(doc['screens'])) {
     report('/screens', 'minItems', 'a project needs at least one screen');
   }
+  const screenIds = new Set<string>();
   const pages = screenSources.map((screen, s) => {
     const path = `/screens/${s}`;
     const screenId = text(screen, 'id', path);
+    firstUse(screenIds, screenId, `${path}/id`, 'screen');
     const nodes: Record<string, Json> = {};
     const flatten = (node: unknown, nodePath: string, hint: string): string => {
       const id = context.newId(`node:${screenId}/${hint}`);
@@ -180,7 +192,8 @@ export function migrateV0ToV1(
         report(`${nodePath}/component`, 'enum', `unknown component ${component}`);
       const mapped = COMPONENTS[component];
       if (mapped !== undefined) components.add(mapped);
-      const props = isRecord(node) && isRecord(node['props']) ? node['props'] : {};
+      // Copied, not shared: editing the migrated package must never reach back into the v0 one.
+      const props = isRecord(node) && isRecord(node['props']) ? structuredClone(node['props']) : {};
       const children = isRecord(node) && Array.isArray(node['children']) ? node['children'] : [];
       const childIds = children.map((child, index) =>
         flatten(
@@ -220,7 +233,7 @@ export function migrateV0ToV1(
       );
       return {};
     }
-    return value;
+    return structuredClone(value);
   };
   const light = colors('colors', true);
   const dark = colors('dark', false);

@@ -328,6 +328,41 @@ describe('migration v0 to v1: the package that comes out', () => {
     expect(result.ok, JSON.stringify(result.ok ? null : result.error.details)).toBe(true);
   });
 
+  it('shares no data with the v0 package: editing the result never reaches back into it', () => {
+    const doc = v0({
+      theme: { name: 'T', colors: { 'color.surface': '#fff' }, dark: { 'color.surface': '#000' } },
+      screens: [
+        {
+          id: 's1',
+          name: 'home',
+          path: '/',
+          tree: { component: 'title', props: { text: 'Bonjour', nested: { a: 1 } } },
+        },
+      ],
+    });
+    const input = { 'project.json': doc };
+    const snapshot = structuredClone(input);
+    const result = migratePackage(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const files = result.value as Record<string, Json>;
+
+    const themePath = Object.keys(files).find((path) => path.startsWith('themes/')) as string;
+    const modes = (files[themePath] as { modes: { light: Json; dark: Json } }).modes;
+    modes.light['color.surface'] = 'changed';
+    modes.dark['color.surface'] = 'changed';
+    const pagePath = Object.keys(files).find(
+      (path) => path.startsWith('pages/') && path !== 'pages/index.json',
+    ) as string;
+    const page = files[pagePath] as { nodes: Record<string, { props: { nested: Json } }> };
+    for (const node of Object.values(page.nodes)) {
+      node.props['text' as never] = 'changed' as never;
+      node.props.nested['a'] = 99;
+    }
+
+    expect(input).toEqual(snapshot);
+  });
+
   it('never modifies the v0 package it is given', () => {
     const files = deepFreeze({ 'project.json': v0() }) as PackageFiles;
     const snapshot = structuredClone(files);
@@ -400,6 +435,41 @@ describe('migration v0 to v1: problems are reported against the v0 document', ()
     });
     expect(issuesOf(twice)).toEqual(['duplicate /entities/1/id']);
     expect(issuesOf(v0({ entities: ['oops'], relations: [] }))).toContain('type /entities/0');
+  });
+
+  it('an identifier used twice among its kind: fields of one entity, relations, screens', () => {
+    const twice = (fields: Json[]) =>
+      v0({ entities: [{ id: 'e1', name: 'x', title: 'X', fields }], relations: [] });
+    const field = (id: string, name: string) => ({ id, name, title: name, type: 'string' });
+    expect(issuesOf(twice([field('f', 'a'), field('f', 'b')]))).toEqual([
+      'duplicate /entities/0/fields/1/id',
+    ]);
+    const relation = (id: string) => ({ id, from: 'e1', to: 'e2', kind: 'one-to-one' });
+    expect(issuesOf(v0({ relations: [relation('r'), relation('r')] }))).toEqual([
+      'duplicate /relations/1/id',
+    ]);
+    const screen = (id: string, name: string) => ({
+      id,
+      name,
+      path: `/${name}`,
+      tree: { component: 'page' },
+    });
+    expect(issuesOf(v0({ screens: [screen('s', 'a'), screen('s', 'b')] }))).toEqual([
+      'duplicate /screens/1/id',
+    ]);
+  });
+
+  it('the same field id in two different entities is fine: ids are unique per entity', () => {
+    const entity = (id: string, name: string) => ({
+      id,
+      name,
+      title: name,
+      fields: [{ id: 'f1', name: 'label', title: 'L', type: 'string' }],
+    });
+    const result = migrate(
+      v0({ entities: [entity('e1', 'a'), entity('e2', 'b')], relations: [] }),
+    ).result;
+    expect(result.ok).toBe(true);
   });
 
   it('reports every problem at once, not only the first', () => {
