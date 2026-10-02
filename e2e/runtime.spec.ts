@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import fr from '../apps/runtime/src/locales/fr.json' with { type: 'json' };
-import { RUNTIME_URL, SURFACE } from './targets.js';
+import { RUNTIME_URL, MINIMAL_TITLE, SURFACE } from './targets.js';
+import { serveProject } from './serve-fixture.js';
 
 const surfaceToken = (page: Page) =>
   page.evaluate(() =>
@@ -13,15 +13,19 @@ const shellBackground = (page: Page) =>
   page.locator('acs-runtime-root').evaluate((el) => getComputedStyle(el).backgroundColor);
 
 test.describe('Runtime skeleton', () => {
-  test('starts and renders the Lit shell with the French labels', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
+    await serveProject(page);
+  });
+
+  test('starts and renders the page of the minimal project', async ({ page }) => {
     await page.goto(RUNTIME_URL);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(fr['runtime.title']);
-    await expect(page.getByText(fr['runtime.subtitle'])).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(MINIMAL_TITLE);
   });
 
   test('applies the light tokens by default', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(RUNTIME_URL);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(MINIMAL_TITLE);
     expect(await surfaceToken(page)).toBe(SURFACE.light.token);
     expect(await shellBackground(page)).toBe(SURFACE.light.rgb);
   });
@@ -29,6 +33,7 @@ test.describe('Runtime skeleton', () => {
   test('follows the system dark preference', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto(RUNTIME_URL);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(MINIMAL_TITLE);
     expect(await surfaceToken(page)).toBe(SURFACE.dark.token);
     expect(await shellBackground(page)).toBe(SURFACE.dark.rgb);
   });
@@ -36,6 +41,7 @@ test.describe('Runtime skeleton', () => {
   test('lets data-theme="light" override the system dark preference', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto(RUNTIME_URL);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(MINIMAL_TITLE);
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
     expect(await shellBackground(page)).toBe(SURFACE.light.rgb);
   });

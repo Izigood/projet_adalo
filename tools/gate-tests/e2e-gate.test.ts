@@ -23,7 +23,12 @@ const labels = (app: 'studio' | 'runtime') =>
     string
   >;
 const studio = labels('studio');
-const runtime = labels('runtime');
+// The title the Runtime shows for the minimal fixture, read as data from the E2E targets (it is
+// pinned by the digest test of the fixtures).
+const minimalTitle =
+  /MINIMAL_TITLE = '([^']+)'/.exec(
+    readFileSync(resolve(repoRoot, 'e2e/targets.ts'), 'utf8'),
+  )?.[1] ?? '';
 
 type SpecResult = { title: string; ok: boolean };
 type Suite = { specs?: { title: string; ok: boolean }[]; suites?: Suite[] };
@@ -117,7 +122,7 @@ describe.each([
   {
     suite: 'Runtime skeleton',
     start: 'starts and renders',
-    page: () => runtimePage(runtime['runtime.title'] ?? '', runtime['runtime.subtitle'] ?? ''),
+    page: () => runtimePage(minimalTitle, ''),
   },
 ])('e2e gate (REC-10): $suite', ({ suite, start, page }) => {
   it('fails every theme spec when the page has the right labels but no design tokens', async () => {
@@ -136,4 +141,8 @@ describe.each([
     const results = await runSpecs(suite, await serve(wrong));
     expect(outcome(results, start)).toBe(false);
   });
+});
+
+it('e2e gate: the title of the minimal fixture was read from the E2E targets', () => {
+  expect(minimalTitle).not.toBe('');
 });

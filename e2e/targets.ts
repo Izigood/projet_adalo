@@ -8,3 +8,6 @@ export const SURFACE = {
   light: { token: lightTokens['color.surface'], rgb: 'rgb(255, 255, 255)' },
   dark: { token: darkTokens['color.surface'], rgb: 'rgb(18, 21, 27)' },
 } as const;
+
+/** The title of the page of the minimal fixture, which the Runtime shows (pinned by its digest). */
+export const MINIMAL_TITLE = 'Bonjour';

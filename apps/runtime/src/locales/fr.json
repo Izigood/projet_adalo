@@ -1,8 +1,21 @@
 {
   "runtime.title": "App Canvas Studio",
-  "runtime.subtitle": "Runtime prêt : aucun projet chargé.",
+  "runtime.loading": "Chargement du projet…",
   "runtime.reference": "Référence :",
   "runtime.node.unknown": "Composant non disponible :",
   "runtime.node.error": "Ce bloc n'a pas pu s'afficher.",
-  "runtime.node.missing": "Un bloc de cette page est introuvable."
+  "runtime.node.missing": "Un bloc de cette page est introuvable.",
+  "runtime.bootError.title": "Impossible d'ouvrir le projet",
+  "runtime.bootError.intro": "Le paquet du projet n'a pas pu être chargé ou n'est pas valide.",
+  "runtime.bootError.code": "Code",
+  "runtime.bootError.issues": "Anomalies relevées",
+  "runtime.notFound.title": "Page introuvable",
+  "runtime.notFound.text": "Cette adresse ne correspond à aucune page du projet.",
+  "runtime.invalidParam.text": "Un paramètre de l'adresse n'est pas valide :",
+  "runtime.notFound.back": "Revenir à l'accueil",
+  "runtime.denied.title": "Accès refusé",
+  "runtime.denied.role": "Cette page est réservée à un rôle que vous n'avez pas.",
+  "runtime.denied.expression": "Cette page est soumise à une condition qui n'est pas encore prise en charge.",
+  "runtime.crash.title": "Une erreur est survenue",
+  "runtime.crash.text": "L'application a rencontré un problème inattendu."
 }
