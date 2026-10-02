@@ -16,6 +16,7 @@
     "@sinclair/typebox": "0.34.52"
   },
   "devDependencies": {
+    "happy-dom": "^20.14.5",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }

@@ -24,3 +24,5 @@ export {
 } from './validate-definition.js';
 export type { DefinitionIssue } from './validate-definition.js';
 export { sampleProps, validateProps } from './props.js';
+export { contractFindings } from './contract.js';
+export type { ContractFinding, ContractFindingCode } from './contract.js';
