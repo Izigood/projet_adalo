@@ -2,6 +2,49 @@
 
 Format inspiré de Keep a Changelog. Un lot terminé = une entrée et un tag `vX.Y.0` (dossier § 9.6).
 
+## [0.1.0] — Lot 1 « Modèle de projet » — 2026-10-02
+
+Tag proposé : **`v0.1.0`** (non posé : à créer après validation du lot). Exigences : ET-FMT-01, ET-FMT-02, EF-SEC-04.
+
+### Ajouté
+
+- **Schémas du paquet projet v1** (`packages/project-schema`) : TypeBox, compilés par Ajv en mode _standalone_ au build (`pnpm generate`, sorties dans `generated/`, non versionnées) ; aucun `import`, `require`, `new Function` ni `eval` dans le code généré (contrôlé par `forbiddenConstructs`, avec un contrôle négatif par motif). 39 validateurs, environ 288 Ko bruts (environ 25 Ko gzip).
+- **Validation** : `validate(nom, donnée)` et `validateFiles(paquet)` renvoient un `Result` ; l'erreur `MANIFEST_INVALID` porte la liste des problèmes avec le fichier, le mot-clé et le chemin JSON Pointer (échappement `~0`/`~1`).
+- **Migration** : `detectManifestVersion` (version absente = 0), `migratePackage`, `openPackage`, chaîne `MIGRATIONS` ; v0 → v1 pure, sans partage de données avec l'entrée, qui refuse les identifiants dupliqués. Une étape qui n'avance pas la version échoue.
+- **`domain`** : générateur UUID v7 monotone (horloge et aléa injectables), `UUID_V7_PATTERN`, `isUuidV7`, `asId`, codes `MANIFEST_INVALID` et `MANIFEST_UNSUPPORTED`.
+- **`packages/testing`** : fixtures déterministes (minimale, de référence, complète), format v0 historique avec le v1 attendu écrit à la main, 43 fixtures corrompues avec le chemin d'erreur exact attendu, `consistencyProblems` pour les références entre fichiers, test de propriété de la migration (1 000 documents), empreinte SHA-256 de chaque fixture de référence.
+- **Garde-fou thème** : `THEME_TOKEN_VALUE_PATTERN` refuse toute valeur de jeton capable d'injecter du CSS.
+- **Seuils de couverture** : les fichiers de migration sont tenus à 90 % de lignes et 85 % de branches (§ 9.4).
+- **ADR** : 0027 à 0032.
+
+### Critères de sortie du lot 1
+
+| Critère                                          | Preuve                                                                                                                                                                                                      |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fixtures valides acceptées                       | `packages/testing/src/fixtures.test.ts` (minimale, de référence, complète) ; `consistency.test.ts`.                                                                                                         |
+| Fixtures corrompues rejetées avec le chemin JSON | `packages/testing/src/corrupted.test.ts` : 43 cas, chacun avec `fichier mot-clé /chemin` exact.                                                                                                             |
+| Migration v0 → v1 testée                         | `migration.test.ts` (fixture historique contre le v1 écrit à la main), `migration-property.test.ts` (1 000 documents : v1 valide et cohérent, entrée intacte, déterminisme), `migrations/v0-to-v1.test.ts`. |
+| Fixtures de référence non modifiées              | `fixture-digests.test.ts`, avec un contrôle que l'empreinte mesure le contenu.                                                                                                                              |
+| `pnpm verify` vert                               | Trois exécutions consécutives vertes : 419 tests unitaires, 129 tests de gates, 24 tests E2E, 4 contrôles négatifs E2E ; seuils de couverture respectés.                                                    |
+
+### Changement d'outillage
+
+- **Node 26** remplace Node 24 (ADR-0032). Node 26 est une version _Current_, pas LTS : écart assumé à la demande de l'utilisateur, et l'IT l'a installé de son côté en cours de lot.
+- **Phase `pnpm test:gates`** : un échec intermittent (« Timeout calling onTaskUpdate ») est apparu pendant le passage à Node 26. Cause : les tests de gates lancent ESLint, dependency-cruiser et Playwright et saturent le processeur des workers des tests unitaires. Une comparaison A/B montre qu'elle ne dépend pas de Node. Les gates ont donc leur propre phase de `verify` (ADR-0025), et `verify-gate.test.ts` exige les quatre phases de test.
+- `packages/testing` a sa propre configuration Vitest : sans elle, `pnpm --filter @acs/testing test` échouait (la configuration racine était résolue depuis le mauvais dossier).
+
+### Écarts et points ouverts
+
+1. **ADR-0028 et CLAUDE.md** : la règle « tout changement de format du manifeste = migration + fixture de l'ancien format » est appliquée à partir de la 1.0.0 ; avant, la politique de l'ADR-0028 s'applique. CLAUDE.md n'a pas été modifié : à l'utilisateur de décider s'il y transcrit cette politique.
+2. **Secrets dans les charges ouvertes** : les secrets placés dans `props`, `bindings`, `events`, `params` et valeurs par défaut ne sont pas détectés (EF-SEC-04 n'est couvert que pour les champs typés). Le trou est figé par `open-payloads.test.ts` ; le balayage en profondeur est prévu aux lots 12 et 13 (ADR-0028).
+3. **Format v0 synthétique** : aucun format v0 réel n'existe ; la migration est démontrée sur un v0 que j'ai défini (ADR-0031). À remplacer par un vrai v0 s'il en existe un.
+4. **Toujours ouverts depuis le lot 0** : pas de contrôle automatique des licences, osv-scanner jamais exécuté (avertissement en local), pas de CI, `axe-core` non installé (MPL-2.0).
+5. **Node 26 non LTS** (voir ci-dessus).
+
+### Revue indépendante (sous-agent `reviewer`)
+
+Le sous-agent n'avait que des outils de lecture : il n'a ni lancé `pnpm verify` ni appliqué de mutation, et ses prédictions ont été vérifiées par moi. Constats traités : M1, m1 à m5, m6 (empreintes des fixtures), m7 (test autonome de `@acs/testing`).
+
 ## [0.0.0] — Lot 0 « Fondations » — 2026-10-02
 
 Tag proposé : **`v0.0.0`** (non posé : à créer après validation du lot).
