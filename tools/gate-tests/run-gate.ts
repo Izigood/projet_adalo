@@ -27,6 +27,52 @@ export function withScratchProject<T>(files: Fixture, run: (dir: string) => T): 
   }
 }
 
+export type Violation = { readonly rule: string; readonly from: string; readonly to: string };
+
+export type DepcruiseRun = {
+  readonly status: number | null;
+  readonly violations: readonly Violation[];
+  readonly output: string;
+};
+
+/** Runs the real dependency-cruiser CLI (with the repo configuration unless told otherwise). */
+export function runDepcruise(dir: string, configPath = REPO_DEPCRUISE_CONFIG): DepcruiseRun {
+  // dependency-cruiser does not export its package.json: address its CLI in the root node_modules.
+  const bin = resolve(here, '../../node_modules/dependency-cruiser/bin/dependency-cruiser.mjs');
+  const cruise = (outputType: string) =>
+    spawnSync(process.execPath, [bin, '.', '--config', configPath, '--output-type', outputType], {
+      cwd: dir,
+      encoding: 'utf8',
+      maxBuffer: 32 * 1024 * 1024,
+    });
+  // Exit status comes from the `err` reporter, the one `pnpm depcruise` uses (json always exits 0);
+  // the rule names come from the json report.
+  const gate = cruise('err');
+  const jsonRun = cruise('json');
+  const result = {
+    status: gate.status,
+    stdout: jsonRun.stdout,
+    stderr: `${gate.stdout}${gate.stderr}`,
+  };
+  const output = `${result.stdout}\n${result.stderr}`;
+  let violations: Violation[] = [];
+  try {
+    const report = JSON.parse(result.stdout) as {
+      summary: { violations: { rule: { name: string }; from: string; to: string }[] };
+    };
+    violations = report.summary.violations.map((v) => ({
+      rule: v.rule.name,
+      from: v.from,
+      to: v.to,
+    }));
+  } catch {
+    // Not JSON: the run failed before producing a report; callers assert on status and output.
+  }
+  return { status: result.status, violations, output };
+}
+
+export const REPO_DEPCRUISE_CONFIG = resolve(here, '../../.dependency-cruiser.cjs');
+
 /** Runs the real Vitest CLI with coverage on a fixture project. */
 export function runVitestCoverage(dir: string): GateRun {
   const require = createRequire(import.meta.url);
