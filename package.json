@@ -1,0 +1,19 @@
+{
+  "name": "app-canvas-studio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "App Canvas Studio - low-code studio driven by metadata",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "verify": "pnpm format:check"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  }
+}

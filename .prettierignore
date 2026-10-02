@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+playwright-report
+test-results
+pnpm-lock.yaml
+docs/dossier-creation.md
+CLAUDE.md
+LISEZMOI-KIT.md
+.claude
