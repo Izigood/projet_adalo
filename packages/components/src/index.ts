@@ -3,10 +3,13 @@ import type { ComponentDefinition, ComponentRegistry } from '@acs/component-sdk'
 import { defineElements } from './base/define.js';
 import type { BaseComponent } from './base/define.js';
 import fr from './locales/fr.json';
+import { structureAccordion } from './structure/accordion.js';
 import { structureGrid } from './structure/grid.js';
 import { structurePage } from './structure/page.js';
 import { structureSection } from './structure/section.js';
+import { structureSidePanel } from './structure/side-panel.js';
 import { structureStack } from './structure/stack.js';
+import { structureTabs } from './structure/tabs.js';
 
 export const PACKAGE_NAME = '@acs/components';
 
@@ -16,6 +19,9 @@ export const BASE_COMPONENTS: readonly BaseComponent[] = [
   structureSection,
   structureStack,
   structureGrid,
+  structureTabs,
+  structureSidePanel,
+  structureAccordion,
 ];
 
 export const BASE_DEFINITIONS: readonly ComponentDefinition[] = BASE_COMPONENTS.map(

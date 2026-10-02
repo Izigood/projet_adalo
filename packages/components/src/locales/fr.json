@@ -2,5 +2,8 @@
   "component.structure.page": "Page",
   "component.structure.section": "Section",
   "component.structure.stack": "Pile",
-  "component.structure.grid": "Grille"
+  "component.structure.grid": "Grille",
+  "component.structure.tabs": "Onglets",
+  "component.structure.sidePanel": "Panneau latéral",
+  "component.structure.accordion": "Accordéon"
 }
