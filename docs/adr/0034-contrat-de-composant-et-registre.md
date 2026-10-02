@@ -19,7 +19,7 @@ Le § 7.3 donne `ComponentDefinition` mais cite cinq types qu'aucune section ne 
 - `ComponentMigration` : `{ from, to, description, migrate(props) }`, fonction pure d'une version majeure à la suivante.
 - `propsSchema` est un objet TypeBox (`TObject`), non un `TSchema` quelconque : l'inspecteur du lot 7 génère son formulaire à partir de ses propriétés.
 
-**Identité** : l'identifiant est `famille.nom` (`structure.stack`), la famille étant la catégorie ; la référence du manifeste est `id@majeure` (`structure.stack@1`). La majeure vient de `version` (SemVer). Plusieurs majeures d'un même identifiant peuvent coexister (la précédente étant dépréciée). La balise est `acs-<famille>-<nom-en-kebab>`.
+**Identité** : l'identifiant est `famille.nom` (`structure.stack`), la famille étant la catégorie ; la référence du manifeste est `id@majeure` (`structure.stack@1`). La majeure vient de `version` (SemVer). Plusieurs majeures d'un même identifiant peuvent coexister (la précédente étant dépréciée). La balise est `acs-<famille>-<nom-en-kebab>` pour la majeure 1, et `acs-<famille>-<nom-en-kebab>-v<majeure>` à partir de la majeure 2 : deux majeures qui coexistent ne peuvent pas définir le même élément personnalisé.
 
 **Validation à l'enregistrement** (EF-CMP-01) : un identifiant, une version, une balise, un schéma de props, des événements, des capacités, des métadonnées d'accessibilité ou des surcharges responsives invalides refusent l'enregistrement par une erreur `COMPONENT_INVALID` (code ajouté au catalogue du § 7.7, qui est « repris et complété ») qui nomme la définition et la propriété fautives. Un doublon d'identifiant et de majeure est refusé.
 
