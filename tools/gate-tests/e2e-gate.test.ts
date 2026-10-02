@@ -57,7 +57,13 @@ function runStudioSpecs(url: string): Promise<SpecResult[]> {
       [playwrightCli, 'test', '--project=chromium', '--grep', 'Studio skeleton', '--reporter=json'],
       {
         cwd: repoRoot,
-        env: { ...process.env, E2E_EXTERNAL: '1', STUDIO_URL: url, RUNTIME_URL: url },
+        env: {
+          ...process.env,
+          E2E_EXTERNAL: '1',
+          E2E_EXPECT_TIMEOUT: '2000',
+          STUDIO_URL: url,
+          RUNTIME_URL: url,
+        },
       },
     );
     let stdout = '';

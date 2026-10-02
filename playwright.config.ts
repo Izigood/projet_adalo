@@ -13,6 +13,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: process.env['CI'] !== undefined,
   retries: 0,
+  // Negative controls (tools/gate-tests) shorten it: a failing assertion otherwise waits 5 s.
+  expect: { timeout: Number(process.env['E2E_EXPECT_TIMEOUT'] ?? 5000) },
   reporter: [['list']],
   use: { trace: 'retain-on-failure' },
   projects: [

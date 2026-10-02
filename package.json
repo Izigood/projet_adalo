@@ -21,7 +21,8 @@
     "depcruise": "depcruise . --config .dependency-cruiser.cjs",
     "test": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "verify": "pnpm install --frozen-lockfile && pnpm format:check && pnpm typecheck && pnpm lint && pnpm depcruise && pnpm test && pnpm build && pnpm test:e2e && pnpm security"
+    "test:gates-e2e": "vitest run --root tools/gate-tests --config vitest.e2e.config.ts",
+    "verify": "pnpm install --frozen-lockfile && pnpm format:check && pnpm typecheck && pnpm lint && pnpm depcruise && pnpm test && pnpm build && pnpm test:e2e && pnpm test:gates-e2e && pnpm security"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
