@@ -1,4 +1,7 @@
-/** Business error codes: catalogue of dossier section 7.7, plus the two manifest codes of 6.5. */
+/**
+ * Business error codes: catalogue of dossier section 7.7, plus the two manifest codes of 6.5 and
+ * COMPONENT_INVALID (a component definition refused at registration, ADR-0034).
+ */
 export const DOMAIN_ERROR_CODES = [
   'CONSTRAINT_VIOLATION',
   'VERSION_CONFLICT',
@@ -9,6 +12,7 @@ export const DOMAIN_ERROR_CODES = [
   'PKG_INTEGRITY',
   'MANIFEST_INVALID',
   'MANIFEST_UNSUPPORTED',
+  'COMPONENT_INVALID',
 ] as const;
 
 export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[number];

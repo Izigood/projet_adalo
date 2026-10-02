@@ -42,3 +42,5 @@ Une décision d'architecture = un fichier `NNNN-titre.md` (dossier § 9.3). Ne j
 | [0031](0031-chaine-de-migration-du-manifeste.md)                     | Chaîne de migration du manifeste et format v0                                  | acceptée                                                     |
 | [0032](0032-nodejs-26-comme-version-cible.md)                        | Node.js 26 comme version cible                                                 | acceptée (écart : Current, pas encore LTS)                   |
 | [0033](0033-pipeline-de-demarrage-du-runtime.md)                     | Pipeline de démarrage du Runtime                                               | acceptée (pipeline provisoire : DAD § 8.1 absent)            |
+| [0034](0034-contrat-de-composant-et-registre.md)                     | Contrat de composant, registre et plugins non chargés                          | acceptée                                                     |
+| [0035](0035-axe-core-en-dependance-de-test.md)                       | axe-core en dépendance de test (MPL-2.0)                                       | acceptée (lève l'écart n° 2 du lot 0)                        |

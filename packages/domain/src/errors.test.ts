@@ -22,9 +22,10 @@ describe('domainError', () => {
     expect(a.correlationId).not.toBe(b.correlationId);
   });
 
-  it('catalogues the 7 codes of section 7.7 and the 2 manifest codes of section 6.5', () => {
+  it('catalogues the 7 codes of section 7.7, the 2 manifest codes of section 6.5 and COMPONENT_INVALID', () => {
     expect([...DOMAIN_ERROR_CODES].sort()).toEqual(
       [
+        'COMPONENT_INVALID',
         'CONSTRAINT_VIOLATION',
         'EXPRESSION_BUDGET',
         'EXPRESSION_INVALID',

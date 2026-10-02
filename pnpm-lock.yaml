@@ -266,6 +266,16 @@ importers:
         version: 3.2.7(@types/node@26.6.3)(happy-dom@20.14.5)(lightningcss@1.33.0)(supports-color@7.2.0)
 
   packages/component-sdk:
+    dependencies:
+      '@acs/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@acs/project-schema':
+        specifier: workspace:*
+        version: link:../project-schema
+      '@sinclair/typebox':
+        specifier: 0.34.52
+        version: 0.34.52
     devDependencies:
       typescript:
         specifier: ^5.9.3
