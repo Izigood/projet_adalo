@@ -84,6 +84,8 @@ export { SCHEMAS } from './schemas.js';
 export type { SchemaName } from './schemas.js';
 export { JsonValueSchema, STRICT, discriminated, ref, stringEnum } from './schema-kit.js';
 export type { JsonValue } from './schema-kit.js';
+export { MIGRATIONS, detectManifestVersion, migratePackage, openPackage } from './migrations.js';
+export type { MigrationContext, MigrationOptions, MigrationStep } from './migrations.js';
 export { schemaForPath, validateFiles } from './package-files.js';
 export type { FileIssue, FilesValidationDetails, PackageFiles } from './package-files.js';
 export { toIssues, validate } from './validate.js';
