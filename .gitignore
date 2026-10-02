@@ -3,6 +3,7 @@ dist/
 coverage/
 playwright-report/
 test-results/
+tools/gate-tests/.tmp/
 *.tsbuildinfo
 .env
 .env.*
