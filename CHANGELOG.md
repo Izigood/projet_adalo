@@ -2,6 +2,62 @@
 
 Format inspiré de Keep a Changelog. Un lot terminé = une entrée et un tag `vX.Y.0` (dossier § 9.6).
 
+## [0.2.0] — Lot 2 « Runtime shell » — 2026-10-02
+
+Tag proposé : **`v0.2.0`** (non posé : à créer après validation du lot). Exigences : EF-NAV-01, EF-NAV-03 (partiel), EF-THM-01, EF-SEC-02.
+
+### Ajouté
+
+- **Pipeline de démarrage** (`apps/runtime/src/boot`, ADR-0033) : lecture de `project.json` et des fichiers qu'il nomme depuis `./project/` (un chemin hors du dossier n'est jamais lu), migration et validation (lot 1), contrôles de cohérence (page initiale, routes, thème par défaut), identité. Chaque échec est une `DomainError` qui nomme le fichier et le chemin JSON, affichée à l'écran.
+- **Routeur par hash** (`router/`) : table de routes, paramètres typés (`string`, `integer`, `uuid`), segment littéral avant paramètre, première route déclarée en cas d'égalité, redirection de `#/` vers la page initiale, 404, refus propre d'un paramètre invalide. Un index qui contredit les fichiers de pages est refusé avec son chemin JSON.
+- **Guards** : `role` évalué ; `expression` refusé par défaut jusqu'au moteur du lot 8 (fail-closed).
+- **Identité** : port `IdentityProvider`, `UserContext`, `RoleKey`, `hasRole` dans `domain` ; adaptateur local (« Utilisateur local », aucun rôle par défaut).
+- **Rendu et error boundaries** : chaque nœud est sa propre boundary (renderer qui lève, enfant absent, cycle, profondeur > 64) ; le shell affiche une référence plutôt qu'une page blanche si le démarrage ou le rendu échoue ; les props passent par des liaisons de texte Lit.
+- **Thème du projet** : `themeCss` et `applyTheme` superposent les jetons du thème (communs, clair, sombre) aux jetons de base. Les valeurs qui peuvent sortir de leur déclaration ou charger une ressource sont refusées par le schéma et par `design-system`, avec un cas négatif par contrôle ; un test de `apps/runtime` garde les deux listes alignées.
+- **Tests partagés** : `addPage`, `routingPage`, `routingIndex` dans `packages/testing`.
+- **ADR** : 0033 ; ADR-0025 corrigé (cause du timeout de worker).
+
+### Critères de sortie du lot 2
+
+| Critère                                       | Preuve                                                                                                                                                                                                     |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| La fixture minimale s'affiche (3 navigateurs) | `e2e/runtime.spec.ts` et `e2e/runtime-shell.spec.ts` sur Chromium, Firefox et WebKit (51 tests) ; `boot.test.ts` démarre les 3 fixtures valides et la v0 migrée.                                           |
+| Un jeton modifié change le rendu              | `e2e/runtime-shell.spec.ts` : `color.surface` modifié en clair puis en sombre change la couleur de fond (valeurs exactes) ; `css.test.ts`. Mutation : ne plus appliquer le thème fait échouer ces 2 specs. |
+| Liens profonds, 404, paramètres typés         | `match-route.test.ts` (dont 1 000 tirages), `route-table.test.ts`, specs E2E du shell.                                                                                                                     |
+| Contrôle négatif (REC-10)                     | `e2e-gate.test.ts` : une page qui affiche le titre mais ignore le projet, le hash, les guards et le thème fait échouer les 9 specs du shell.                                                               |
+| `pnpm verify` vert                            | 624 tests unitaires, 129 tests de gates, 51 tests E2E, 6 contrôles négatifs E2E.                                                                                                                           |
+
+Mutations appliquées puis annulées : thème du projet non appliqué, guards ignorés (specs E2E visées en échec) ; guard `expression` laissé passer, contrôle de sortie du dossier retiré, boundary de nœud retirée, garde de cycle retiré, chaque contrôle de `themeCss` retiré un à un (tests visés en échec).
+
+### Écarts par rapport au dossier
+
+1. **DAD § 8.1 absent** : le pipeline de démarrage est défini par l'ADR-0033, pas transcrit. À confronter au DAD dès qu'il est disponible.
+2. **EF-NAV-03 partiel** : la route et le paramètre sont ouverts ; l'ouverture d'un enregistrement et son refus propre s'il est absent attendent le Repository (lots 4 et 9).
+3. **Redirections** : seule celle de la racine vers la page initiale ; le manifeste n'a pas de champ de redirection.
+4. **Rendu provisoire** : `info.title@1` est rendu par un substitut, tout autre composant par un repère neutre ; le registre arrive au lot 3.
+5. **Guards d'expression refusés** jusqu'au lot 8 ; en local, une page gardée par un rôle est refusée (aucun rôle par défaut) jusqu'au profil local du lot 11.
+6. **Intégrité non vérifiée** (`integrity.json`) avant les lots 12 et 13.
+7. **Jetons : liste noire, pas liste blanche.** Une fonction CSS de chargement inconnue ou future passerait. À étudier avant la 1.0.0 (ADR-0033).
+8. **Poids** : bundle du Runtime de 291 899 octets (44 971 gzip) ; le budget du § 8.3 est contrôlé au lot 14.
+
+### Dette et points ouverts
+
+- **`pnpm --filter <paquet> test`** échoue pour tout paquet sans configuration Vitest locale (la configuration racine est résolue depuis le mauvais dossier). Corrigé pour `@acs/testing` ; les autres paquets se testent depuis la racine (`pnpm test`).
+- **Un seul bouchon négatif E2E par suite** : aucune spec n'est éprouvée contre une implémentation partielle par la gate ; les mutations ci-dessus ont été faites à la main, pas automatisées (revue m1).
+- **Toujours ouverts depuis le lot 0** : pas de contrôle des licences, osv-scanner jamais exécuté, pas de CI, `axe-core` absent (MPL-2.0), Node 26 non LTS (ADR-0032).
+
+### Erreur reconnue
+
+Au lot 1, j'avais attribué le timeout de worker de Vitest (« Timeout calling onTaskUpdate ») à la seule contention entre tests de gates et tests unitaires, et je l'avais déclaré réglé par la phase `test:gates`. Il est revenu. La cause première est un test de propriété de 1 000 documents d'un seul bloc ; il est découpé en lots de 100 (totaux inchangés) et l'ADR-0025 est corrigé.
+
+### Revue indépendante (sous-agent `reviewer`)
+
+Verdict : lot acceptable sous réserve de M1 et M2, aucun bloquant. Le sous-agent a cette fois exécuté `pnpm verify` et des mutations.
+
+- **Corrigés avec test** : M1 (contrôles de `themeCss` non prouvés : un cas négatif par contrôle, chacun confirmé par mutation), M2 (`/*` et fonctions de chargement ; écart 7 consigné), m2 (règle de la première route déclarée, documentée et testée), m5 (ordre identité et thème aligné dans l'ADR, poids mesuré, `MINIMAL_TITLE` lié à la fixture par un test).
+- **Corrigé sans test dédié** : m3 (cette entrée), m4 (ADR-0025 committé à part).
+- **Accepté** : m1 (un seul bouchon négatif E2E par suite, voir la dette).
+
 ## [0.1.0] — Lot 1 « Modèle de projet » — 2026-10-02
 
 Tag proposé : **`v0.1.0`** (non posé : à créer après validation du lot). Exigences : ET-FMT-01, ET-FMT-02, EF-SEC-04.
