@@ -39,6 +39,8 @@ export function generateValidators(schemas: SchemaRegistry): GeneratedValidators
     allErrors: true,
     strict: true,
     discriminator: true,
+    // Call shared definitions instead of copying them into every schema that uses them (size).
+    inlineRefs: false,
     // Length of strings in UTF-16 units: avoids Ajv's `require("ajv/dist/runtime/ucs2length")`.
     unicode: false,
     logger: {

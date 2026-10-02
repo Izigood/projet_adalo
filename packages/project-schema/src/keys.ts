@@ -2,6 +2,7 @@ import { UUID_V7_PATTERN } from '@acs/domain';
 import type { Id } from '@acs/domain';
 import { Type } from '@sinclair/typebox';
 import type { TUnsafe } from '@sinclair/typebox';
+import { ref } from './schema-kit.js';
 
 /** RG-11: readable key of an entity, field, page or workflow. */
 export const READABLE_KEY_PATTERN = '^[a-z][a-zA-Z0-9_]{0,63}$';
@@ -27,15 +28,11 @@ export const SHA256_HEX_PATTERN = '^[0-9a-f]{64}$';
 /** Language tag limited to `fr` or `fr-FR` style values. */
 export const LOCALE_PATTERN = '^[a-z]{2}(-[A-Z]{2})?$';
 
-/** UUID v7 identifier. The brand records which object kind it designates (never use a label). */
-export const idOf = <Kind extends string>(description?: string): TUnsafe<Id<Kind>> =>
-  Type.Unsafe<Id<Kind>>(
-    Type.String({
-      pattern: UUID_V7_PATTERN,
-      ...(description === undefined ? {} : { description }),
-    }),
-  );
-
+/**
+ * Definitions: each one is registered under its own name in `SCHEMAS`, compiled once, and used by
+ * other schemas through the `...Ref` constants below.
+ */
+export const Uuid7 = Type.String({ pattern: UUID_V7_PATTERN, description: 'UUID v7 identifier' });
 export const ReadableKey = Type.String({
   pattern: READABLE_KEY_PATTERN,
   description:
@@ -45,10 +42,11 @@ export const ProjectKey = Type.String({
   pattern: PROJECT_KEY_PATTERN,
   description: 'Project key (RG-11): 2 to 16 upper-case letters and digits',
 });
+export const Label = Type.String({ minLength: 1, maxLength: 200, description: 'Display label' });
 export const SemVer = Type.String({ pattern: SEMVER_PATTERN });
 export const IsoDate = Type.String({ pattern: ISO_DATE_PATTERN });
 export const IsoDateTimeUtc = Type.String({ pattern: ISO_DATETIME_UTC_PATTERN });
-export const ComponentRef = Type.String({ pattern: COMPONENT_REF_PATTERN });
+export const ComponentReference = Type.String({ pattern: COMPONENT_REF_PATTERN });
 export const Sha256Hex = Type.String({ pattern: SHA256_HEX_PATTERN });
 export const Locale = Type.String({ pattern: LOCALE_PATTERN });
 
@@ -57,3 +55,19 @@ export const Classification = Type.Union(
   [Type.Literal('public'), Type.Literal('interne'), Type.Literal('sensible')],
   { description: 'Data classification (D-10)' },
 );
+
+/** References to the definitions above, to compose other schemas. */
+export const ReadableKeyRef = ref<typeof ReadableKey>('ReadableKey');
+export const ProjectKeyRef = ref<typeof ProjectKey>('ProjectKey');
+export const LabelRef = ref<typeof Label>('Label');
+export const SemVerRef = ref<typeof SemVer>('SemVer');
+export const IsoDateRef = ref<typeof IsoDate>('IsoDate');
+export const IsoDateTimeUtcRef = ref<typeof IsoDateTimeUtc>('IsoDateTimeUtc');
+export const ComponentReferenceRef = ref<typeof ComponentReference>('ComponentReference');
+export const Sha256HexRef = ref<typeof Sha256Hex>('Sha256Hex');
+export const LocaleRef = ref<typeof Locale>('Locale');
+export const ClassificationRef = ref<typeof Classification>('Classification');
+
+/** UUID v7 identifier. The brand records which object kind it designates (never use a label). */
+export const idOf = <Kind extends string>(): TUnsafe<Id<Kind>> =>
+  Type.Unsafe<Id<Kind>>({ $ref: 'Uuid7' });
