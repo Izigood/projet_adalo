@@ -26,3 +26,15 @@ export type { DefinitionIssue } from './validate-definition.js';
 export { sampleProps, validateProps } from './props.js';
 export { contractFindings } from './contract.js';
 export type { ContractFinding, ContractFindingCode } from './contract.js';
+export {
+  BREAKPOINT_MIN_WIDTH,
+  BREAKPOINT_QUERIES,
+  breakpointOf,
+  ignoredOverrides,
+  resolveProps,
+} from './breakpoints.js';
+export type { Breakpoint, ResponsiveNode } from './breakpoints.js';
+export { deprecationNotices } from './deprecation.js';
+export type { DeprecationNotice } from './deprecation.js';
+export { planMigration } from './migration.js';
+export type { MigrationPlan, PropChange } from './migration.js';

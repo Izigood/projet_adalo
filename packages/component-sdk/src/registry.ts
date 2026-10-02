@@ -1,6 +1,6 @@
 import { domainError, err, ok } from '@acs/domain';
 import type { DomainError, Result } from '@acs/domain';
-import { parseRef, refOf } from './definition.js';
+import { majorOf, parseRef, refOf } from './definition.js';
 import type { ComponentDefinition } from './definition.js';
 import { validateDefinition } from './validate-definition.js';
 
@@ -10,6 +10,8 @@ export type ComponentRegistry = {
   register(definition: ComponentDefinition): Result<void, DomainError>;
   /** The definition a manifest reference (`structure.stack@1`) designates, if registered. */
   resolve(ref: string): ComponentDefinition | undefined;
+  /** The registered majors of one component, oldest first. */
+  versionsOf(id: string): readonly ComponentDefinition[];
   /** Every registered definition, in registration order. */
   definitions(): readonly ComponentDefinition[];
 };
@@ -39,6 +41,11 @@ export function createRegistry(): ComponentRegistry {
     },
     resolve(ref) {
       return parseRef(ref) === undefined ? undefined : byRef.get(ref);
+    },
+    versionsOf(id) {
+      return [...byRef.values()]
+        .filter((definition) => definition.id === id)
+        .sort((a, b) => (majorOf(a.version) ?? 0) - (majorOf(b.version) ?? 0));
     },
     definitions() {
       return [...byRef.values()];
