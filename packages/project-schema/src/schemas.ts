@@ -24,6 +24,7 @@ import {
   ThemeTokens,
 } from './project.js';
 import { Role } from './role.js';
+import { Page, PageRoute, PagesIndex, UINode } from './ui.js';
 
 /**
  * Every schema compiled into a standalone validator, by name. `scripts/generate-validators.ts`
@@ -64,12 +65,17 @@ export const SCHEMAS = {
   AssetPath,
   Theme,
   Role,
+  // Pages
+  UINode,
+  PageRoute,
+  Page,
   // Package files
   ManifestPath,
   ProjectManifest,
   EntitiesFile,
   RolesFile,
   QueriesFile,
+  PagesIndex,
 } as const;
 
 export type SchemaName = keyof typeof SCHEMAS;
