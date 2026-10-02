@@ -8,7 +8,8 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate": "vite-node scripts/generate.ts"
   },
   "dependencies": {
     "@acs/domain": "workspace:*",
