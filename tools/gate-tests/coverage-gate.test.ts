@@ -99,3 +99,53 @@ describe('coverage gate (REC-10)', () => {
     });
   });
 });
+
+// The files of dossier 9.4 that are logic although their package is not: the manifest migrations.
+// Written out on purpose, like the packages above.
+const MIGRATION_FILES = [
+  'packages/project-schema/src/migrations.ts',
+  'packages/project-schema/src/migrations/step.ts',
+] as const;
+/** The threshold key vitest reports for each of them (the second one is a folder glob). */
+const MIGRATION_GLOBS: Record<(typeof MIGRATION_FILES)[number], string> = {
+  'packages/project-schema/src/migrations.ts': 'packages/project-schema/src/migrations.ts',
+  'packages/project-schema/src/migrations/step.ts':
+    'packages/project-schema/src/migrations/**/*.ts',
+};
+
+const escapeForRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+const thresholdFor = (kind: 'lines' | 'branches', glob: string, percent: number) =>
+  new RegExp(
+    `Coverage for ${kind} .* does not meet "${escapeForRegExp(glob)}" threshold \\(${percent}%\\)`,
+  );
+
+const migrationProject = (codePath: string, logic: string, test: string): Fixture => {
+  const base = codePath.replace(/\.ts$/, '');
+  const name = base.split('/').pop() as string;
+  return {
+    'vitest.config.ts': sharedConfig,
+    [codePath]: logic,
+    [`${base}.test.ts`]: test.replace('./logic.js', `./${name}.js`),
+  };
+};
+
+describe.each(MIGRATION_FILES)('coverage gate (REC-10): migration file %s', (codePath) => {
+  const glob = MIGRATION_GLOBS[codePath];
+
+  it('passes when the migration is fully exercised', () => {
+    const result = run(migrationProject(codePath, spreadLogic, all));
+    expect(result.status, result.output).toBe(0);
+  });
+
+  it('fails its own 90 % lines threshold when lines are left untested', () => {
+    const result = run(migrationProject(codePath, spreadLogic, one));
+    expect(result.status).not.toBe(0);
+    expect(result.output).toMatch(thresholdFor('lines', glob, 90));
+  });
+
+  it('fails its own 85 % branches threshold even with every line covered', () => {
+    const result = run(migrationProject(codePath, compactLogic, one));
+    expect(result.status).not.toBe(0);
+    expect(result.output).toMatch(thresholdFor('branches', glob, 85));
+  });
+});
