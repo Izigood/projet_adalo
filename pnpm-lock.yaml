@@ -323,7 +323,17 @@ importers:
         version: 3.2.7(@types/node@24.19.0)(happy-dom@20.14.5)(lightningcss@1.33.0)(supports-color@7.2.0)
 
   packages/project-schema:
+    dependencies:
+      '@acs/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@sinclair/typebox':
+        specifier: 0.34.52
+        version: 0.34.52
     devDependencies:
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -824,6 +834,9 @@ packages:
     resolution: {integrity: sha512-0RAxO1pS/6lY1mSoD2Apm+6aPyfUlm+OWKgncIdj/eVN9I+pDY3lKgD7xsUNFei1u7MZQETGOo6m8POXMDp53A==}
     cpu: [x64]
     os: [win32]
+
+  '@sinclair/typebox@0.34.52':
+    resolution: {integrity: sha512-XiMQh7qqVlxZzcVD+kkGMNGMzcTrDMLWI7S4x7z1MkCkbDPrekpZXEUK0eZqZFMuHQg2a2DZOcDIh9o5v3Gonw==}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -2156,6 +2169,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.63.6':
     optional: true
+
+  '@sinclair/typebox@0.34.52': {}
 
   '@types/chai@5.2.3':
     dependencies:
