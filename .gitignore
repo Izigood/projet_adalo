@@ -9,3 +9,4 @@ tools/gate-tests/.tmp/
 .env.*
 .DS_Store
 sbom.cdx.json
+.claude/launch.json
