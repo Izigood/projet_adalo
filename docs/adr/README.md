@@ -5,6 +5,7 @@ Une décision d'architecture = un fichier `NNNN-titre.md` (dossier § 9.3). Ne j
 - **0001 à 0010** : transcription du DAD. Seuls 0001 et 0002 sont décrits par le dossier ; **0003 à 0010 sont des emplacements réservés**, le DAD n'étant pas disponible lors du lot 0.
 - **0011 à 0022** : décisions D-01 à D-12 du dossier (§ 3).
 - **0023 à 0026** : choix faits pendant le lot 0.
+- **0027 à 0031** : choix faits pendant le lot 1.
 
 | ADR                                                                  | Titre                                                                          | Statut                                                       |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -34,3 +35,8 @@ Une décision d'architecture = un fichier `NNNN-titre.md` (dossier § 9.3). Ne j
 | [0024](0024-interdits-eslint-et-exceptions.md)                       | Interdits ESLint : règles, exceptions et limites                               | acceptée                                                     |
 | [0025](0025-chaine-de-qualification-pnpm-verify.md)                  | Chaîne de qualification `pnpm verify`                                          | acceptée                                                     |
 | [0026](0026-injection-des-jetons-par-feuille-de-style-construite.md) | Injection des jetons de design par feuille de style construite                 | acceptée                                                     |
+| [0027](0027-validateurs-ajv-standalone-generes-au-build.md)          | Validateurs Ajv standalone générés au build                                    | acceptée                                                     |
+| [0028](0028-formes-du-manifeste-v1-et-politique-avant-la-1-0-0.md)   | Formes du manifeste v1 et politique avant la 1.0.0                             | acceptée (déroge à la lettre de CLAUDE.md)                   |
+| [0029](0029-identifiants-uuid-v7-et-cles-lisibles.md)                | Identifiants UUID v7 et clés lisibles                                          | acceptée                                                     |
+| [0030](0030-erreurs-de-manifeste-et-chemins-json.md)                 | Erreurs de manifeste et chemins JSON                                           | acceptée                                                     |
+| [0031](0031-chaine-de-migration-du-manifeste.md)                     | Chaîne de migration du manifeste et format v0                                  | acceptée                                                     |

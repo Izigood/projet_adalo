@@ -21,3 +21,7 @@ Exceptions explicites :
 
 - Limites connues : `setTimeout` n'est détecté qu'avec une chaîne littérale, un gabarit ou une concaténation (pas une chaîne stockée dans une variable : cela demanderait ESLint typé). `insertAdjacentHTML` et `document.write` ne sont pas couverts, car absents de CLAUDE.md.
 - Contrôles négatifs : `tools/gate-tests/lint-gate.test.ts` (code conforme accepté, code interdit refusé par la règle prévue, règle désactivée laisse passer).
+
+## Mise à jour (lot 1)
+
+L'interdit d'importer `ajv` admet une exception : `packages/project-schema/scripts/**`, où l'on génère les validateurs au build (ADR-0027). Les points d'entrée d'Ajv listés (`ajv`, `ajv/dist/ajv`, `/2019`, `/2020`, `/jtd`) restent interdits partout ailleurs, y compris sous `src/` du même paquet, et les directives Lit restent interdites dans `scripts/`. `ajv/dist/runtime/*` et `ajv/dist/standalone` ne sont pas interdits.
