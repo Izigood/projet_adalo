@@ -13,6 +13,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: process.env['CI'] !== undefined,
   retries: 0,
+  // Closing Chromium or Firefox sometimes takes 20 to 70 s on a loaded Windows machine (measured:
+  // WebKit always closes in under a second). The per-test timeout includes that teardown, so the
+  // 30 s default turned a slow close into a failure. Two workers keep the load down; retries would
+  // hide real instability, so there are none.
+  timeout: 120_000,
+  workers: 2,
   // Negative controls (tools/gate-tests) shorten it: a failing assertion otherwise waits 5 s.
   expect: { timeout: Number(process.env['E2E_EXPECT_TIMEOUT'] ?? 5000) },
   reporter: [['list']],

@@ -59,28 +59,43 @@ const project = (pkg: string, logic: string, test: string): Fixture => ({
 
 const run = (files: Fixture) => withScratchProject(files, runVitestCoverage);
 
-describe('coverage gate (REC-10)', () => {
-  it('passes when the logic is fully exercised', () => {
-    const result = run(project('domain', spreadLogic, all));
-    expect(result.status, result.output).toBe(0);
-  });
+// The four logic packages of dossier 9.4. Written out here on purpose: the control must not read
+// the list it is supposed to check from vitest.coverage.ts.
+const LOGIC_PACKAGES = ['domain', 'expression', 'policy', 'workflow-engine'] as const;
 
+const threshold = (kind: 'lines' | 'branches', name: string, percent: number) =>
+  new RegExp(
+    `Coverage for ${kind} .* does not meet "packages/${name}/src/\\*\\*/\\*\\.ts" threshold \\(${percent}%\\)`,
+  );
+
+describe('coverage gate (REC-10)', () => {
   it('fails the 80 % global threshold when lines are left untested', () => {
     const result = run(project('other', spreadLogic, one));
     expect(result.status).not.toBe(0);
     expect(result.output).toMatch(/Coverage for lines .* does not meet global threshold \(80%\)/);
   });
 
-  it('fails a logic package under 85 % branches even with every line covered', () => {
-    const result = run(project('domain', compactLogic, one));
-    expect(result.status).not.toBe(0);
-    expect(result.output).toMatch(
-      /Coverage for branches .* does not meet "packages\/domain\/src\/\*\*\/\*\.ts" threshold \(85%\)/,
-    );
-  });
-
   it('does not apply the branch threshold outside logic packages', () => {
     const result = run(project('other', compactLogic, one));
     expect(result.status, result.output).toBe(0);
+  });
+
+  describe.each(LOGIC_PACKAGES)('logic package %s', (name) => {
+    it('passes when fully exercised', () => {
+      const result = run(project(name, spreadLogic, all));
+      expect(result.status, result.output).toBe(0);
+    });
+
+    it('fails its own 90 % lines threshold when lines are left untested', () => {
+      const result = run(project(name, spreadLogic, one));
+      expect(result.status).not.toBe(0);
+      expect(result.output).toMatch(threshold('lines', name, 90));
+    });
+
+    it('fails its own 85 % branches threshold even with every line covered', () => {
+      const result = run(project(name, compactLogic, one));
+      expect(result.status).not.toBe(0);
+      expect(result.output).toMatch(threshold('branches', name, 85));
+    });
   });
 });
