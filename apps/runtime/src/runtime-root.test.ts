@@ -1,8 +1,8 @@
 import { err, ok } from '@acs/domain';
 import type { IdentityProvider } from '@acs/domain';
 import type { Page } from '@acs/project-schema';
-import { CORRUPTED_FIXTURES, minimalFixture, stableId } from '@acs/testing';
-import type { FixtureFiles } from '@acs/testing';
+import { CORRUPTED_FIXTURES, addPage as add, minimalFixture } from '@acs/testing';
+import type { FixtureFiles, PageSpec } from '@acs/testing';
 import { html } from 'lit';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FileSource } from './boot/file-source.js';
@@ -22,34 +22,12 @@ const memory =
         : err('the server answered 404'),
     );
 
-/** Adds a page to a package: one title node, its file and its route in the index. */
-function addPage(
+const addPage = (
   files: FixtureFiles,
   key: string,
   route: string,
-  extra: Partial<Pick<Page, 'params' | 'guards'>> & { component?: string } = {},
-): void {
-  const id = stableId<'page'>(`root.page.${key}`);
-  const nodeId = stableId<'node'>(`root.node.${key}`);
-  const page: Page = {
-    id,
-    key,
-    route,
-    params: extra.params ?? [],
-    rootNodeId: nodeId,
-    guards: extra.guards ?? [],
-    nodes: {
-      [nodeId]: {
-        id: nodeId,
-        component: extra.component ?? 'info.title@1',
-        props: { text: `Page ${key}` },
-        children: [],
-      },
-    },
-  };
-  files[`pages/${id}.json`] = page;
-  (files['pages/index.json'] as { routes: unknown[] }).routes.push({ pageId: id, route });
-}
+  extra: Omit<PageSpec, 'key' | 'route'> = {},
+): void => void add(files, { key, route, ...extra });
 
 async function start(
   files: FixtureFiles,

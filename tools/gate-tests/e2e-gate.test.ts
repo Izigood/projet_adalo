@@ -143,6 +143,13 @@ describe.each([
   });
 });
 
+describe('e2e gate (REC-10): Runtime shell', () => {
+  it('fails every shell spec against a page that shows the title but ignores the project, the hash, the guards and the theme', async () => {
+    const results = await runSpecs('Runtime shell', await serve(runtimePage(minimalTitle, '')));
+    expect(results).toHaveLength(9);
+    expect(results.filter((result) => result.ok).map((result) => result.title)).toEqual([]);
+  }, 120_000);
+});
 it('e2e gate: the title of the minimal fixture was read from the E2E targets', () => {
   expect(minimalTitle).not.toBe('');
 });
