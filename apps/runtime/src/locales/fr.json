@@ -1,4 +1,8 @@
 {
   "runtime.title": "App Canvas Studio",
-  "runtime.subtitle": "Runtime prêt : aucun projet chargé."
+  "runtime.subtitle": "Runtime prêt : aucun projet chargé.",
+  "runtime.reference": "Référence :",
+  "runtime.node.unknown": "Composant non disponible :",
+  "runtime.node.error": "Ce bloc n'a pas pu s'afficher.",
+  "runtime.node.missing": "Un bloc de cette page est introuvable."
 }
