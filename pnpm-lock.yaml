@@ -360,7 +360,17 @@ importers:
         version: 3.2.7(@types/node@24.19.0)(happy-dom@20.14.5)(lightningcss@1.33.0)(supports-color@7.2.0)
 
   packages/testing:
+    dependencies:
+      '@acs/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@acs/project-schema':
+        specifier: workspace:*
+        version: link:../project-schema
     devDependencies:
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
