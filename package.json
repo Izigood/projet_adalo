@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "description": "App Canvas Studio - low-code studio driven by metadata",
+  "packageManager": "pnpm@12.8.1",
   "engines": {
     "node": ">=24.0.0"
   },
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "pnpm -r --if-present typecheck && tsc -p e2e/tsconfig.json",
+    "typecheck": "pnpm -r --if-present typecheck && tsc -p e2e/tsconfig.json && tsc -p tsconfig.json",
     "lint": "eslint .",
     "build": "pnpm -r --if-present build",
     "dev:studio": "pnpm --filter @acs/studio dev",

@@ -3,21 +3,24 @@ import { describe, expect, it } from 'vitest';
 import { applyTheme, cssVarName, lightTokens } from './index.js';
 
 describe('applyTheme', () => {
-  it('adds one stylesheet carrying the design tokens to the document', () => {
-    const before = document.adoptedStyleSheets.length;
+  it('adds a stylesheet carrying the design tokens to the document', () => {
     const sheet = applyTheme(document);
-    expect(document.adoptedStyleSheets).toHaveLength(before + 1);
     expect(document.adoptedStyleSheets).toContain(sheet);
     const text = [...sheet.cssRules].map((rule) => rule.cssText).join('\n');
     expect(text).toContain(cssVarName('color.surface'));
     expect(text).toContain(lightTokens['color.surface']);
   });
 
-  it('is idempotent for the same document', () => {
+  it('adds exactly one stylesheet, however many times it is called', () => {
+    const before = document.adoptedStyleSheets.length;
     const first = applyTheme(document);
-    const count = document.adoptedStyleSheets.length;
+    const afterFirst = document.adoptedStyleSheets.length;
     expect(applyTheme(document)).toBe(first);
-    expect(document.adoptedStyleSheets).toHaveLength(count);
+    expect(applyTheme(document)).toBe(first);
+    expect(document.adoptedStyleSheets).toHaveLength(afterFirst);
+    // Whether the first call happened in this test or in an earlier one, at most one sheet is added.
+    expect(afterFirst - before).toBeLessThanOrEqual(1);
+    expect(document.adoptedStyleSheets.filter((sheet) => sheet === first)).toHaveLength(1);
   });
 
   it('refuses a document that is not attached to a window', () => {
