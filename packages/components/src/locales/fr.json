@@ -1,0 +1,6 @@
+{
+  "component.structure.page": "Page",
+  "component.structure.section": "Section",
+  "component.structure.stack": "Pile",
+  "component.structure.grid": "Grille"
+}

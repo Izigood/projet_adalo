@@ -10,7 +10,14 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@acs/component-sdk": "workspace:*",
+    "@acs/design-system": "workspace:*",
+    "@sinclair/typebox": "0.34.52",
+    "lit": "^3.3.3"
+  },
   "devDependencies": {
+    "happy-dom": "^20.14.5",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }
