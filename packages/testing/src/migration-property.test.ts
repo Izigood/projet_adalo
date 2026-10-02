@@ -111,12 +111,19 @@ const freeze = <T>(value: T): T => {
   return value;
 };
 
-/** 1 000 generated documents take a few seconds: more than Vitest's default 5 s. */
+/**
+ * Each property runs in batches of 100 documents, one test per batch. A single 1 000-document test
+ * kept the worker busy for tens of seconds without yielding, so under load Vitest could not reach
+ * it any more and aborted the run ("Timeout calling onTaskUpdate", 60 s). Batches give the worker
+ * a turn of the event loop between them; the total number of documents is unchanged.
+ */
+const BATCH = 100;
+const batches = (count: number) => Array.from({ length: count / BATCH }, (_, i) => i + 1);
 const PROPERTY_TIMEOUT = 60_000;
 
 describe('migration v0 to v1, for any well-formed v0 document', () => {
-  it(
-    'always yields a valid, consistent v1 package (1 000 documents)',
+  it.each(batches(1000))(
+    'always yields a valid, consistent v1 package (1 000 documents, batch %i of 10)',
     () => {
       fc.assert(
         fc.property(v0Document, (doc) => {
@@ -124,28 +131,28 @@ describe('migration v0 to v1, for any well-formed v0 document', () => {
           if (!result.ok) return false;
           return consistencyProblems(result.value).length === 0;
         }),
-        { numRuns: 1000 },
+        { numRuns: BATCH },
       );
     },
     PROPERTY_TIMEOUT,
   );
 
-  it(
-    'never modifies its input',
+  it.each(batches(300))(
+    'never modifies its input (300 documents, batch %i of 3)',
     () => {
       fc.assert(
         fc.property(v0Document, (doc) => {
           const files = freeze({ 'project.json': structuredClone(doc) });
           return migratePackage(files).ok;
         }),
-        { numRuns: 300 },
+        { numRuns: BATCH },
       );
     },
     PROPERTY_TIMEOUT,
   );
 
-  it(
-    'is deterministic for a given identifier source, and keeps one entity per v0 entity',
+  it.each(batches(300))(
+    'is deterministic for a given identifier source, and keeps one entity per v0 entity (batch %i of 3)',
     () => {
       const context = { newId: (hint: string) => stableId(hint) as string };
       fc.assert(
@@ -158,12 +165,11 @@ describe('migration v0 to v1, for any well-formed v0 document', () => {
             .entities;
           return entities.length === doc.entities.length;
         }),
-        { numRuns: 300 },
+        { numRuns: BATCH },
       );
     },
     PROPERTY_TIMEOUT,
   );
-
   it('property check has teeth: a v0 document with a dangling link is not accepted', () => {
     const doc = {
       project: { code: 'AB', title: 'T', lang: 'fr', version: '1.0.0' },
