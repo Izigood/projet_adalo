@@ -124,3 +124,49 @@ describe.each(Object.keys(VALID_FIXTURES))('current-format fixture %s', (name) =
     expect(result.error.details).toEqual({ found: 2, supported: 1 });
   });
 });
+
+describe('limits of the migration, pinned on purpose (ADR-0031)', () => {
+  it('reports a bad VALUE of a v0 package with the path it has in the migrated v1 package', () => {
+    const files = legacyV0Fixture();
+    (files['project.json'] as { project: { code: string } }).project.code = 'crm';
+    const result = openPackage(files, { context: stable });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const issues = (result.error.details as { issues: FileIssue[] }).issues;
+    // v0 calls it `project.code`; the error speaks of the v1 `project.key`.
+    expect(issues).toMatchObject([
+      { file: 'project.json', keyword: 'pattern', path: '/project/key' },
+    ]);
+  });
+
+  it('reports a theme value that is not allowed in the theme file of the migrated package', () => {
+    const files = legacyV0Fixture();
+    const doc = files['project.json'] as { theme: { colors: Record<string, string> } };
+    doc.theme.colors['color.surface'] = 'url(https://evil.example/x.png)';
+    const result = openPackage(files, { context: stable });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const issues = (result.error.details as { issues: FileIssue[] }).issues;
+    expect(issues).toMatchObject([
+      {
+        file: `themes/${stableId('theme')}.json`,
+        keyword: 'pattern',
+        path: '/modes/light/color.surface',
+      },
+    ]);
+  });
+
+  it('takes a v1 package whose manifestVersion was deleted for a v0 one, and rejects it as such', () => {
+    const files = (VALID_FIXTURES['reference'] as () => PackageFiles)();
+    delete (files['project.json'] as { manifestVersion?: number }).manifestVersion;
+    expect(detectManifestVersion(files)).toBe(0);
+    const result = openPackage(files);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('MANIFEST_INVALID');
+    const issues = (result.error.details as { issues: FileIssue[] }).issues;
+    expect(issues.map((issue) => `${issue.keyword} ${issue.path}`)).toContain(
+      'required /project/code',
+    );
+  });
+});
