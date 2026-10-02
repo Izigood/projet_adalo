@@ -13,6 +13,7 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "build": "pnpm -r --if-present build",
+    "dev:studio": "pnpm --filter @acs/studio dev",
     "dev:runtime": "pnpm --filter @acs/runtime dev",
     "depcruise": "depcruise . --config .dependency-cruiser.cjs",
     "test": "vitest run --coverage",

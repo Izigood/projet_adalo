@@ -1,6 +1,6 @@
+import { applyTheme } from '@acs/design-system';
 import { RUNTIME_ROOT_TAG } from './runtime-root.js';
 import type { RuntimeRoot } from './runtime-root.js';
-import { applyTheme } from './theme.js';
 
 /** Applies the theme and attaches the application shell to `container`. */
 export function mountRuntime(container: HTMLElement): RuntimeRoot {

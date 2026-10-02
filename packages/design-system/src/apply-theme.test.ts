@@ -1,6 +1,6 @@
-import { cssVarName, lightTokens } from '@acs/design-system';
+// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { applyTheme } from './theme.js';
+import { applyTheme, cssVarName, lightTokens } from './index.js';
 
 describe('applyTheme', () => {
   it('adds one stylesheet carrying the design tokens to the document', () => {

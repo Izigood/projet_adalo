@@ -1,0 +1,22 @@
+body {
+  margin: 0;
+  background: var(--acs-color-surface);
+  color: var(--acs-color-text);
+  font-family: var(--acs-font-family-sans);
+  line-height: var(--acs-line-height-normal);
+}
+
+.studio-shell {
+  min-height: 100vh;
+  padding: var(--acs-space-5);
+}
+
+.studio-shell h1 {
+  margin: 0 0 var(--acs-space-2);
+  font-size: var(--acs-font-size-xl);
+}
+
+.studio-shell p {
+  margin: 0;
+  color: var(--acs-color-text-muted);
+}

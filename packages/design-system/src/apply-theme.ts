@@ -1,10 +1,10 @@
-import { themeCss } from '@acs/design-system';
+import { themeCss } from './css.js';
 
 const sheets = new WeakMap<Document, CSSStyleSheet>();
 
 /**
- * Exposes the design tokens as CSS custom properties on the document. A constructable stylesheet
- * is used instead of a <style> element so it works under a strict CSP (no 'unsafe-inline').
+ * Exposes the design tokens as CSS custom properties on a document. A constructable stylesheet is
+ * used instead of a <style> element so it works under a strict CSP (no 'unsafe-inline').
  * Idempotent: calling it again on the same document does not add a second sheet.
  */
 export function applyTheme(doc: Document): CSSStyleSheet {

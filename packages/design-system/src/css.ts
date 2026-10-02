@@ -14,7 +14,7 @@ function declarations(tokens: Readonly<Record<string, string>>): string {
 /**
  * Stylesheet exposing every token as a CSS custom property. Light is the default; dark applies
  * through `data-theme="dark"` or the system preference unless `data-theme="light"` is forced.
- * Inject it with a <style> element's textContent, never innerHTML.
+ * Use applyTheme() to inject it; never build markup from it with innerHTML.
  */
 export function themeCss(): string {
   const dark = declarations(darkTokens);
