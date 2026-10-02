@@ -14,6 +14,16 @@ export const JsonValueSchema = Type.Unsafe<JsonValue>({});
 export const STRICT = { additionalProperties: false } as const;
 
 /**
+ * One of a fixed list of strings, as a JSON Schema enum: a wrong value gives a single error
+ * instead of one per alternative.
+ */
+export function stringEnum<const Values extends readonly string[]>(
+  values: Values,
+): TUnsafe<Values[number]> {
+  return Type.Unsafe<Values[number]>({ type: 'string', enum: [...values] });
+}
+
+/**
  * A reference to the registered schema `name` (see `SCHEMAS`). The referenced schema is compiled
  * once and called from everywhere it is used, which keeps the generated validators small: the
  * Runtime ships them, and its budget is 250 kB compressed (dossier 8.3).

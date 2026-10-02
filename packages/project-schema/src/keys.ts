@@ -2,7 +2,7 @@ import { UUID_V7_PATTERN } from '@acs/domain';
 import type { Id } from '@acs/domain';
 import { Type } from '@sinclair/typebox';
 import type { TUnsafe } from '@sinclair/typebox';
-import { ref } from './schema-kit.js';
+import { ref, stringEnum } from './schema-kit.js';
 
 /** RG-11: readable key of an entity, field, page or workflow. */
 export const READABLE_KEY_PATTERN = '^[a-z][a-zA-Z0-9_]{0,63}$';
@@ -51,10 +51,8 @@ export const Sha256Hex = Type.String({ pattern: SHA256_HEX_PATTERN });
 export const Locale = Type.String({ pattern: LOCALE_PATTERN });
 
 /** Data classification carried by entities and fields from the start (decision D-10). */
-export const Classification = Type.Union(
-  [Type.Literal('public'), Type.Literal('interne'), Type.Literal('sensible')],
-  { description: 'Data classification (D-10)' },
-);
+export const CLASSIFICATIONS = ['public', 'interne', 'sensible'] as const;
+export const Classification = stringEnum(CLASSIFICATIONS);
 
 /** References to the definitions above, to compose other schemas. */
 export const ReadableKeyRef = ref<typeof ReadableKey>('ReadableKey');

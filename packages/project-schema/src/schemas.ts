@@ -1,3 +1,4 @@
+import { Entity, EntityIndex, FilterSpec, Query, Relation } from './data-model.js';
 import { ChoiceSource, Field, FieldUi, FieldValidator, FileOptions } from './field.js';
 import {
   Classification,
@@ -39,6 +40,11 @@ export const SCHEMAS = {
   ChoiceSource,
   FileOptions,
   Field,
+  EntityIndex,
+  Entity,
+  Relation,
+  FilterSpec,
+  Query,
   SecretRef,
 } as const;
 

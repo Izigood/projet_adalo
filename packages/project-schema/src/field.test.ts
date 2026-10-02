@@ -127,9 +127,7 @@ describe('common attributes', () => {
   });
 
   it('refuse a classification outside public, interne and sensible', () => {
-    expect(issuesOf(field('date', { classification: 'secret' }))).toContain(
-      'anyOf /classification',
-    );
+    expect(issuesOf(field('date', { classification: 'secret' }))).toEqual(['enum /classification']);
   });
 
   it('require id, key, label, required and classification', () => {
