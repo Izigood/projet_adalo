@@ -12,9 +12,13 @@
   },
   "dependencies": {
     "@acs/design-system": "workspace:*",
+    "@acs/domain": "workspace:*",
+    "@acs/project-schema": "workspace:*",
     "lit": "^3.3.3"
   },
   "devDependencies": {
+    "@acs/testing": "workspace:*",
+    "fast-check": "^4.10.2",
     "happy-dom": "^20.14.5",
     "typescript": "^5.9.3",
     "vite": "^7.3.6",

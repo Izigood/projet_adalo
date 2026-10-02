@@ -205,10 +205,22 @@ importers:
       '@acs/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@acs/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@acs/project-schema':
+        specifier: workspace:*
+        version: link:../../packages/project-schema
       lit:
         specifier: ^3.3.3
         version: 3.3.3
     devDependencies:
+      '@acs/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
       happy-dom:
         specifier: ^20.14.5
         version: 20.14.5

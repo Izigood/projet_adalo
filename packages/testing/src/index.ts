@@ -8,6 +8,7 @@ import type { FixtureFiles } from './package-builder.js';
 export { consistencyProblems } from './consistency.js';
 export { stableId } from './ids.js';
 export { buildPackage } from './package-builder.js';
+export { routingIndex, routingPage } from './routing-builders.js';
 export type { FixtureDocuments, FixtureFiles } from './package-builder.js';
 export {
   CORRUPTED_FIXTURES,
