@@ -174,8 +174,8 @@ describe('migratePackage', () => {
     expect(seen[0]?.newId('x')).toBe('id-for-x');
   });
 
-  it('has no real step yet while the format is at version 1', () => {
-    expect(MIGRATIONS).toEqual([]);
+  it('has one real step per version change: only v0 to v1 while the format is at version 1', () => {
+    expect(MIGRATIONS.map((step) => step.from)).toEqual([0]);
   });
 });
 
