@@ -25,6 +25,7 @@ import {
 } from './project.js';
 import { Role } from './role.js';
 import { Page, PageRoute, PagesIndex, UINode } from './ui.js';
+import { Workflow } from './workflow.js';
 
 /**
  * Every schema compiled into a standalone validator, by name. `scripts/generate-validators.ts`
@@ -69,6 +70,8 @@ export const SCHEMAS = {
   UINode,
   PageRoute,
   Page,
+  // Workflows
+  Workflow,
   // Package files
   ManifestPath,
   ProjectManifest,

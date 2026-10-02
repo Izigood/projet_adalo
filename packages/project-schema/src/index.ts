@@ -79,6 +79,7 @@ export {
   PagesIndex,
   UINode,
 } from './ui.js';
+export { LOG_LEVELS, VARIABLE_TYPES, WORKFLOW_NODE_TYPES, Workflow } from './workflow.js';
 export { SCHEMAS } from './schemas.js';
 export type { SchemaName } from './schemas.js';
 export { JsonValueSchema, STRICT, discriminated, ref, stringEnum } from './schema-kit.js';
