@@ -108,12 +108,77 @@ const cases: readonly Case[] = [
     bad: "import { unsafeHTML } from 'lit/directives/unsafe-html.js';\nexport const directive = unsafeHTML;\n",
     good: "import { html } from 'lit';\nexport const template = html;\n",
   },
+  {
+    name: 'Lit unsafeSVG',
+    rule: 'no-restricted-imports',
+    bad: "import { unsafeSVG } from 'lit/directives/unsafe-svg.js';\nexport const directive = unsafeSVG;\n",
+    good: "import { svg } from 'lit';\nexport const template = svg;\n",
+  },
+  {
+    name: 'lit-html unsafeHTML',
+    rule: 'no-restricted-imports',
+    bad: "import { unsafeHTML } from 'lit-html/directives/unsafe-html.js';\nexport const directive = unsafeHTML;\n",
+    good: "import { html } from 'lit-html';\nexport const template = html;\n",
+  },
+  {
+    name: 'setInterval with a string',
+    rule: 'no-implied-eval',
+    bad: "setInterval('poll()', 1000);\n",
+    good: 'setInterval(() => undefined, 1000);\n',
+  },
+  {
+    name: 'localStorage through globalThis',
+    rule: 'no-restricted-properties',
+    bad: "globalThis.localStorage.setItem('draft', '{}');\n",
+    good: 'export const value = 1;\n',
+  },
+  {
+    name: 'localStorage through self',
+    rule: 'no-restricted-properties',
+    bad: "self.localStorage.setItem('draft', '{}');\n",
+    good: 'export const value = 1;\n',
+  },
+  {
+    name: 'localStorage in a TSX file outside the preferences module',
+    rule: 'no-restricted-globals',
+    bad: "localStorage.setItem('draft', '{}');\n",
+    good: 'export const value = 1;\n',
+    file: 'apps/studio/src/app.tsx',
+  },
+  {
+    name: 'localStorage in a TSX file of the preferences module',
+    rule: 'no-restricted-globals',
+    bad: "localStorage.setItem('theme', 'dark');\n",
+    good: "localStorage.setItem('theme', 'dark');\n",
+    file: 'apps/studio/src/preferences/theme.tsx',
+  },
+  {
+    name: 'export default in a *.config.ts file hidden inside src',
+    rule: 'no-restricted-syntax',
+    bad: 'export default 1;\n',
+    good: 'export const value = 1;\n',
+    file: 'packages/domain/src/theme.config.ts',
+  },
+  {
+    name: 'Ajv compiling entry point (ajv/dist/2020)',
+    rule: 'no-restricted-imports',
+    bad: "import Ajv2020 from 'ajv/dist/2020';\nexport const ajv = new Ajv2020();\n",
+    good: 'export const value = 1;\n',
+  },
+  {
+    name: 'Ajv runtime helpers imported by generated standalone validators stay allowed',
+    rule: 'no-restricted-imports',
+    bad: "import equal from 'ajv/dist/runtime/equal';\nexport const same = equal;\n",
+    good: "import equal from 'ajv/dist/runtime/equal';\nexport const same = equal;\n",
+  },
 ];
 
 // Cases whose "bad" code is deliberately accepted (allow-lists): the rule must stay silent.
 const ALLOWED = new Set([
   'export default stays allowed in tool configuration files',
   'localStorage in the interface preferences module',
+  'localStorage in a TSX file of the preferences module',
+  'Ajv runtime helpers imported by generated standalone validators stay allowed',
 ]);
 
 async function violations(code: string, file: string, switchedOff?: string) {

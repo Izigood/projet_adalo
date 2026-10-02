@@ -25,6 +25,17 @@ const NO_EXPORT_DEFAULT = {
 const LOCAL_STORAGE_MESSAGE =
   'localStorage is reserved for interface preferences (apps/*/src/preferences). Use the Repository port for data.';
 
+// Every Ajv entry point that compiles schemas with new Function. `ajv/dist/runtime/*` and
+// `ajv/dist/standalone` stay allowed: generated standalone validators import the former, and the
+// build-time generator is the latter.
+const AJV_COMPILING_ENTRIES = [
+  'ajv',
+  'ajv/dist/ajv',
+  'ajv/dist/2019',
+  'ajv/dist/2020',
+  'ajv/dist/jtd',
+];
+
 const UNSAFE_LIT_PATTERNS = [
   'lit/directives/unsafe-html*',
   'lit/directives/unsafe-svg*',
@@ -68,13 +79,11 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          paths: [
-            {
-              name: 'ajv',
-              message:
-                'Ajv runtime compilation is forbidden (CSP, no new Function). Use generated standalone validators.',
-            },
-          ],
+          paths: AJV_COMPILING_ENTRIES.map((name) => ({
+            name,
+            message:
+              'Ajv runtime compilation is forbidden (CSP, no new Function). Use generated standalone validators.',
+          })),
           patterns: UNSAFE_LIT_PATTERNS.map((group) => ({
             group: [group],
             message: 'Lit unsafeHTML/unsafeSVG directives are forbidden.',
@@ -85,14 +94,20 @@ export default tseslint.config(
   },
   {
     // Tool configuration files require a default export; every other forbidden pattern still applies.
-    files: ['**/*.config.{js,ts,mjs,cjs}'],
+    // Only at the repository root or directly inside a workspace directory, never in `src`.
+    files: [
+      '*.config.{js,ts,mjs,cjs}',
+      'apps/*/*.config.{js,ts,mjs,cjs}',
+      'packages/*/*.config.{js,ts,mjs,cjs}',
+      'tools/*/*.config.{js,ts,mjs,cjs}',
+    ],
     rules: {
       'no-restricted-syntax': ['error', ...DYNAMIC_HTML_SINKS],
     },
   },
   {
     // The only place allowed to use localStorage: interface preferences.
-    files: ['apps/*/src/preferences/**/*.ts'],
+    files: ['apps/*/src/preferences/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-globals': 'off',
       'no-restricted-properties': 'off',
