@@ -6,7 +6,7 @@
   "description": "App Canvas Studio - low-code studio driven by metadata",
   "packageManager": "pnpm@12.8.1",
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=26.0.0"
   },
   "scripts": {
     "generate": "pnpm --filter @acs/project-schema generate",
@@ -22,14 +22,15 @@
     "security": "pnpm security:osv && pnpm security:sbom",
     "depcruise": "depcruise . --config .dependency-cruiser.cjs",
     "test": "vitest run --coverage",
+    "test:gates": "vitest run --root tools/gate-tests",
     "test:e2e": "playwright test",
     "test:gates-e2e": "vitest run --root tools/gate-tests --config vitest.e2e.config.ts",
-    "verify": "pnpm install --frozen-lockfile && pnpm generate && pnpm format:check && pnpm typecheck && pnpm lint && pnpm depcruise && pnpm test && pnpm build && pnpm test:e2e && pnpm test:gates-e2e && pnpm security"
+    "verify": "pnpm install --frozen-lockfile && pnpm generate && pnpm format:check && pnpm typecheck && pnpm lint && pnpm depcruise && pnpm test && pnpm test:gates && pnpm build && pnpm test:e2e && pnpm test:gates-e2e && pnpm security"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.63.0",
-    "@types/node": "^24.19.0",
+    "@types/node": "^26.6.3",
     "@vitest/coverage-v8": "^3.2.4",
     "dependency-cruiser": "^18.5.0",
     "eslint": "^9.39.5",

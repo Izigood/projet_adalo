@@ -67,6 +67,15 @@ describe('lot 0 exit criterion: forbidden code fails the CI chain', () => {
     expect(depcruiseCommand).not.toBe('');
   });
 
+  it('pnpm verify runs all four test phases: units, gates, E2E and the E2E gate control', () => {
+    // The gates have their own phase apart from the unit tests (ADR-0025): dropping it from the
+    // chain would silently stop checking every control in tools/gate-tests.
+    for (const phase of ['pnpm test', 'pnpm test:gates', 'pnpm test:e2e', 'pnpm test:gates-e2e']) {
+      expect(verifySteps, phase).toContain(phase);
+    }
+    expect(verifySteps.indexOf('pnpm test')).toBeLessThan(verifySteps.indexOf('pnpm build'));
+  });
+
   it('baseline: a clean workspace passes both gates', () => {
     inWorkspace({}, (exec) => {
       expect(exec(lintCommand).status).toBe(0);

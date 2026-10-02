@@ -5,7 +5,7 @@ Une décision d'architecture = un fichier `NNNN-titre.md` (dossier § 9.3). Ne j
 - **0001 à 0010** : transcription du DAD. Seuls 0001 et 0002 sont décrits par le dossier ; **0003 à 0010 sont des emplacements réservés**, le DAD n'étant pas disponible lors du lot 0.
 - **0011 à 0022** : décisions D-01 à D-12 du dossier (§ 3).
 - **0023 à 0026** : choix faits pendant le lot 0.
-- **0027 à 0031** : choix faits pendant le lot 1.
+- **0027 à 0032** : choix faits pendant le lot 1.
 
 | ADR                                                                  | Titre                                                                          | Statut                                                       |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -40,3 +40,4 @@ Une décision d'architecture = un fichier `NNNN-titre.md` (dossier § 9.3). Ne j
 | [0029](0029-identifiants-uuid-v7-et-cles-lisibles.md)                | Identifiants UUID v7 et clés lisibles                                          | acceptée                                                     |
 | [0030](0030-erreurs-de-manifeste-et-chemins-json.md)                 | Erreurs de manifeste et chemins JSON                                           | acceptée                                                     |
 | [0031](0031-chaine-de-migration-du-manifeste.md)                     | Chaîne de migration du manifeste et format v0                                  | acceptée                                                     |
+| [0032](0032-nodejs-26-comme-version-cible.md)                        | Node.js 26 comme version cible                                                 | acceptée (écart : Current, pas encore LTS)                   |
