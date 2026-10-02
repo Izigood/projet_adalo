@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { generateValidators, validatorName, writeValidators } from './generate-validators.js';
+import {
+  forbiddenConstructs,
+  generateValidators,
+  validatorName,
+  writeValidators,
+} from './generate-validators.js';
 import type { SchemaRegistry } from './generate-validators.js';
 
 type Validator = ((data: unknown) => boolean) & {
@@ -83,12 +88,38 @@ const valid = {
 };
 
 describe('generated validators are standalone', () => {
-  it('contain no import, require, new Function or eval', () => {
-    const { js } = generateValidators(toy);
-    expect(js).not.toMatch(/require\s*\(/);
-    expect(js).not.toMatch(/(^|[;\n])\s*import\s/);
-    expect(js).not.toMatch(/new\s+Function\b/);
-    expect(js).not.toMatch(/\beval\s*\(/);
+  it('contain none of the constructs that would make them depend on something at run time', () => {
+    expect(forbiddenConstructs(generateValidators(toy).js)).toEqual([]);
+  });
+
+  it('forbiddenConstructs names each construct it finds (negative control of the check itself)', () => {
+    const cases: [string, string][] = [
+      ['const x = require("ajv/dist/runtime/equal");', 'a require() call'],
+      ['import equal from "ajv/dist/runtime/equal";', 'an import statement'],
+      ['"use strict";import{equal}from"x";', 'an import statement'],
+      ['const a = 1;\nimport * as ns from "x";', 'an import statement'],
+      ['import "side-effect";', 'an import statement'],
+      ['const m = await import("x");', 'a dynamic import()'],
+      ['export * from "x";', 'a re-export from another module'],
+      ['export { a, b } from "x";', 'a re-export from another module'],
+      ['const f = new Function("return 1");', 'new Function'],
+      ['const f = Function("return 1");', 'a call to Function()'],
+      ['eval("1")', 'eval'],
+    ];
+    for (const [code, expected] of cases) {
+      expect(forbiddenConstructs(code), code).toContain(expected);
+    }
+  });
+
+  it('forbiddenConstructs leaves ordinary generated code alone', () => {
+    const clean = [
+      'export const validateX = validate10;',
+      'const schema = {"description":"how to import a package","type":"object"};',
+      'data.reimport = 1; const important = 2; obj.Function = 3; x.eval = 4;',
+      'if (data.Function === undefined) {}',
+      'export const a = 1; export { b };',
+    ];
+    for (const code of clean) expect(forbiddenConstructs(code), code).toEqual([]);
   });
 
   it('validate while dynamic code evaluation is blocked', async () => {
