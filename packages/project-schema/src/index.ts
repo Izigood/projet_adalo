@@ -80,6 +80,14 @@ export {
   UINode,
 } from './ui.js';
 export { LOG_LEVELS, VARIABLE_TYPES, WORKFLOW_NODE_TYPES, Workflow } from './workflow.js';
+export {
+  PLUGIN_CAPABILITIES,
+  PLUGIN_COMPONENT_ID_PATTERN,
+  PLUGIN_ENTRY_PATTERN,
+  PLUGIN_ID_PATTERN,
+  PLUGIN_TAG_PATTERN,
+  PluginManifest,
+} from './plugin.js';
 export { SCHEMAS } from './schemas.js';
 export type { SchemaName } from './schemas.js';
 export { JsonValueSchema, STRICT, discriminated, ref, stringEnum } from './schema-kit.js';

@@ -23,6 +23,7 @@ import {
   ThemeTokenValue,
   ThemeTokens,
 } from './project.js';
+import { PluginManifest } from './plugin.js';
 import { Role } from './role.js';
 import { Page, PageRoute, PagesIndex, UINode } from './ui.js';
 import { Workflow } from './workflow.js';
@@ -79,6 +80,8 @@ export const SCHEMAS = {
   RolesFile,
   QueriesFile,
   PagesIndex,
+  // Plugins (specified, never loaded: ADR-0034)
+  PluginManifest,
 } as const;
 
 export type SchemaName = keyof typeof SCHEMAS;
