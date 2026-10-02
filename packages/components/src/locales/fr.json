@@ -5,5 +5,10 @@
   "component.structure.grid": "Grille",
   "component.structure.tabs": "Onglets",
   "component.structure.sidePanel": "Panneau latéral",
-  "component.structure.accordion": "Accordéon"
+  "component.structure.accordion": "Accordéon",
+  "component.navigation.menu": "Menu",
+  "component.navigation.tabBar": "Barre d'onglets",
+  "component.navigation.breadcrumb": "Fil d'Ariane",
+  "component.navigation.backButton": "Bouton retour",
+  "component.navigation.link": "Lien"
 }

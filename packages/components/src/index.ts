@@ -3,6 +3,11 @@ import type { ComponentDefinition, ComponentRegistry } from '@acs/component-sdk'
 import { defineElements } from './base/define.js';
 import type { BaseComponent } from './base/define.js';
 import fr from './locales/fr.json';
+import { navigationBackButton } from './navigation/back-button.js';
+import { navigationBreadcrumb } from './navigation/breadcrumb.js';
+import { navigationLink } from './navigation/link.js';
+import { navigationMenu } from './navigation/menu.js';
+import { navigationTabBar } from './navigation/tab-bar.js';
 import { structureAccordion } from './structure/accordion.js';
 import { structureGrid } from './structure/grid.js';
 import { structurePage } from './structure/page.js';
@@ -22,6 +27,11 @@ export const BASE_COMPONENTS: readonly BaseComponent[] = [
   structureTabs,
   structureSidePanel,
   structureAccordion,
+  navigationMenu,
+  navigationTabBar,
+  navigationBreadcrumb,
+  navigationBackButton,
+  navigationLink,
 ];
 
 export const BASE_DEFINITIONS: readonly ComponentDefinition[] = BASE_COMPONENTS.map(
