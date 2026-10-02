@@ -12,9 +12,11 @@
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
+    "build": "pnpm -r --if-present build",
+    "dev:runtime": "pnpm --filter @acs/runtime dev",
     "depcruise": "depcruise . --config .dependency-cruiser.cjs",
     "test": "vitest run --coverage",
-    "verify": "pnpm install --frozen-lockfile && pnpm format:check && pnpm typecheck && pnpm lint && pnpm depcruise && pnpm test"
+    "verify": "pnpm install --frozen-lockfile && pnpm format:check && pnpm typecheck && pnpm lint && pnpm depcruise && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

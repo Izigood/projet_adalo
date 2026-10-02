@@ -11,7 +11,7 @@ export function coverageOptions(): CoverageOptions {
   );
   return {
     provider: 'v8',
-    include: ['packages/*/src/**/*.ts', 'tools/*/src/**/*.ts'],
+    include: ['apps/*/src/**/*.ts', 'packages/*/src/**/*.ts', 'tools/*/src/**/*.ts'],
     exclude: ['**/*.test.ts'],
     reporter: ['text-summary', 'lcov'],
     thresholds: { lines: GLOBAL_LINES_THRESHOLD, ...logicThresholds },
