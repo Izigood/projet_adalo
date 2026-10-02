@@ -23,6 +23,20 @@ describe('applyTheme', () => {
     expect(document.adoptedStyleSheets.filter((sheet) => sheet === first)).toHaveLength(1);
   });
 
+  it('replaces the content of the sheet when the theme of a project is applied', () => {
+    const doc = document.implementation.createHTMLDocument('themed');
+    Object.defineProperty(doc, 'defaultView', { value: window });
+    const sheet = applyTheme(doc);
+    const text = () => [...sheet.cssRules].map((rule) => rule.cssText).join('\n');
+    expect(text()).not.toContain('#abcdef');
+    const again = applyTheme(doc, {
+      tokens: {},
+      modes: { light: { 'color.surface': '#abcdef' }, dark: {} },
+    });
+    expect(again).toBe(sheet);
+    expect(doc.adoptedStyleSheets).toHaveLength(1);
+    expect(text()).toContain('#abcdef');
+  });
   it('refuses a document that is not attached to a window', () => {
     const detached = document.implementation.createHTMLDocument('detached');
     expect(() => applyTheme(detached)).toThrow(/attached to a window/);

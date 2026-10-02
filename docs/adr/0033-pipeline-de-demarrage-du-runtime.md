@@ -35,7 +35,7 @@ Le lot 2 demande un « pipeline de démarrage (DAD § 8.1) ». Le DAD n'est pas 
 
 **Rendu provisoire** : le registre de composants est au lot 3. Le lot 2 rend `info.title@1` par un rendu minimal et marqué provisoire ; tout autre composant s'affiche comme un repère neutre portant sa référence. Une exception levée par un nœud est contenue par une error boundary : le reste de la page reste affiché.
 
-**Jetons** : `design-system` applique ce qu'il reçoit ; il ne peut pas importer `project-schema`. La validation du motif des valeurs (`THEME_TOKEN_VALUE_PATTERN`) a donc toujours lieu avant, à l'étape 3 : le pipeline n'appelle jamais l'application du thème sur un paquet non validé.
+**Jetons** : `design-system` applique ce qu'il reçoit ; il ne peut pas importer `project-schema`. La validation du motif des valeurs (`THEME_TOKEN_VALUE_PATTERN`) a donc toujours lieu avant, à l'étape 3 : le pipeline n'appelle jamais l'application du thème sur un paquet non validé. Par défense en profondeur, `design-system` refuse en plus (exception, c'est un bug d'appelant) un nom ou une valeur qui pourrait fermer une déclaration ou une règle, ou charger une ressource.
 
 ## Conséquences
 

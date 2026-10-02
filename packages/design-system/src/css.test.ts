@@ -78,3 +78,81 @@ describe('light and dark modes', () => {
     expect(missing(lightTokens, incomplete)).toEqual(['color.text']);
   });
 });
+
+describe('themeCss with the theme of a project', () => {
+  const surface = cssVarName('color.surface');
+  const blocks = (text: string) => ({
+    root: /^:root \{([^}]*)\}/m.exec(text)?.[1] ?? '',
+    systemDark: /:root:not\(\[data-theme="light"\]\) \{([^}]*)\}/.exec(text)?.[1] ?? '',
+    forcedDark: /:root\[data-theme="dark"\] \{([^}]*)\}/.exec(text)?.[1] ?? '',
+  });
+  const value = (block: string, name: string) =>
+    new RegExp(`${name}: ([^;]+);`).exec(block)?.[1] ?? null;
+  const theme = (parts: {
+    tokens?: Record<string, string>;
+    light?: Record<string, string>;
+    dark?: Record<string, string>;
+  }) => ({
+    tokens: parts.tokens ?? {},
+    modes: { light: parts.light ?? {}, dark: parts.dark ?? {} },
+  });
+
+  it('is the default stylesheet when the theme is empty', () => {
+    expect(themeCss(theme({}))).toBe(themeCss());
+  });
+
+  it('changes the light value of a token', () => {
+    const { root } = blocks(themeCss(theme({ light: { 'color.surface': '#fafafa' } })));
+    expect(value(root, surface)).toBe('#fafafa');
+  });
+
+  it('changes the dark value of a token, in the system and in the forced dark blocks', () => {
+    const { systemDark, forcedDark } = blocks(
+      themeCss(theme({ dark: { 'color.surface': '#010203' } })),
+    );
+    expect(value(systemDark, surface)).toBe('#010203');
+    expect(value(forcedDark, surface)).toBe('#010203');
+  });
+
+  it('applies a common token to both modes, and lets a mode value win over it', () => {
+    const common = blocks(themeCss(theme({ tokens: { 'color.surface': '#111111' } })));
+    expect(value(common.root, surface)).toBe('#111111');
+    expect(value(common.forcedDark, surface)).toBe('#111111');
+    expect(value(common.systemDark, surface)).toBe('#111111');
+
+    const both = blocks(
+      themeCss(
+        theme({ tokens: { 'color.surface': '#111111' }, dark: { 'color.surface': '#222222' } }),
+      ),
+    );
+    expect(value(both.root, surface)).toBe('#111111');
+    expect(value(both.forcedDark, surface)).toBe('#222222');
+  });
+
+  it('overrides a mode-independent token everywhere', () => {
+    const { root, forcedDark } = blocks(themeCss(theme({ tokens: { 'space.1': '9px' } })));
+    expect(value(root, cssVarName('space.1'))).toBe('9px');
+    expect(forcedDark).not.toContain(cssVarName('space.1'));
+  });
+
+  it('adds a token the design system does not know', () => {
+    const { root } = blocks(themeCss(theme({ tokens: { 'brand.accent': '#ff00aa' } })));
+    expect(value(root, '--acs-brand-accent')).toBe('#ff00aa');
+  });
+
+  it('refuses a value that could close the declaration or the rule', () => {
+    for (const bad of [
+      'red; } body { display: none',
+      'a}b',
+      'a\nb',
+      "url('https://x.test/a.png')",
+      'a\\b',
+    ]) {
+      expect(() => themeCss(theme({ tokens: { 'color.surface': bad } })), bad).toThrow(/unsafe/);
+    }
+  });
+
+  it('refuses a token name that is not a dotted design token name', () => {
+    expect(() => themeCss(theme({ light: { 'x: red; } a {': '#fff' } }))).toThrow(/unsafe/);
+  });
+});
