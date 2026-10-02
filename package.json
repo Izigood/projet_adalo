@@ -10,7 +10,9 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm format:check"
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "verify": "pnpm install --frozen-lockfile && pnpm format:check && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

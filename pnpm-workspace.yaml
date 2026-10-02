@@ -2,3 +2,7 @@ packages:
   - apps/*
   - packages/*
   - tools/*
+
+# Install scripts are denied by default; esbuild (MIT) needs its postinstall to fetch its binary.
+allowBuilds:
+  esbuild: true
