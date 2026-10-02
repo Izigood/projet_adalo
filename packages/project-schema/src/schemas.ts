@@ -1,4 +1,5 @@
 import { Entity, EntityIndex, FilterSpec, Query, Relation } from './data-model.js';
+import { EntitiesFile, ManifestPath, ProjectManifest, QueriesFile, RolesFile } from './manifest.js';
 import { ChoiceSource, Field, FieldUi, FieldValidator, FileOptions } from './field.js';
 import {
   Classification,
@@ -22,6 +23,7 @@ import {
   ThemeTokenValue,
   ThemeTokens,
 } from './project.js';
+import { Role } from './role.js';
 
 /**
  * Every schema compiled into a standalone validator, by name. `scripts/generate-validators.ts`
@@ -61,6 +63,13 @@ export const SCHEMAS = {
   ThemeTokens,
   AssetPath,
   Theme,
+  Role,
+  // Package files
+  ManifestPath,
+  ProjectManifest,
+  EntitiesFile,
+  RolesFile,
+  QueriesFile,
 } as const;
 
 export type SchemaName = keyof typeof SCHEMAS;

@@ -60,6 +60,16 @@ export {
   ThemeTokens,
   VERSION_STATUSES,
 } from './project.js';
+export { ENTITY_OPERATIONS, FIELD_ACCESS, Role } from './role.js';
+export {
+  CURRENT_MANIFEST_VERSION,
+  EntitiesFile,
+  MANIFEST_PATH_PATTERN,
+  ManifestPath,
+  ProjectManifest,
+  QueriesFile,
+  RolesFile,
+} from './manifest.js';
 export { SCHEMAS } from './schemas.js';
 export type { SchemaName } from './schemas.js';
 export { JsonValueSchema, STRICT, discriminated, ref, stringEnum } from './schema-kit.js';
