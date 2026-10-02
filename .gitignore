@@ -8,3 +8,4 @@ tools/gate-tests/.tmp/
 .env
 .env.*
 .DS_Store
+sbom.cdx.json

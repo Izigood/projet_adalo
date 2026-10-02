@@ -39,6 +39,7 @@ const ALLOWED = {
   'apps/studio': pkg(ALL_PACKAGES),
   'tools/acs-cli': pkg(['domain', 'project-schema', 'validator', 'publisher']),
   'tools/gate-tests': [],
+  'tools/ci-checks': [],
 };
 
 const TEST_FILE = '\\.test\\.[cm]?[jt]sx?$';
