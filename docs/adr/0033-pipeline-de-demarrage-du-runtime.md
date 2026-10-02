@@ -16,8 +16,8 @@ Le lot 2 demande un « pipeline de démarrage (DAD § 8.1) ». Le DAD n'est pas 
 2. Détecter la version du manifeste et migrer (`openPackage`, ADR-0031).
 3. Valider chaque fichier (`validateFiles`, ADR-0030).
 4. Contrôles de cohérence minimaux : `initialPageId` existe, chaque route de l'index désigne une page existante, `defaultThemeId` désigne un thème fourni. Le validateur complet est au lot 13.
-5. Appliquer le thème du projet (jetons du thème par-dessus les jetons de base, clair et sombre).
-6. Interroger `IdentityProvider.current()`.
+5. Interroger `IdentityProvider.current()` (dans `boot`, qui ne touche pas au DOM).
+6. Appliquer le thème du projet (jetons du thème par-dessus les jetons de base, clair et sombre) : c'est le shell qui le fait, une fois `boot` réussi. L'ordre avec l'identité est sans effet, l'un ne dépend pas de l'autre.
 7. Démarrer le routeur par hash, puis rendre la page.
 
 **Emplacement du paquet** : le Runtime le charge depuis `./project/` (même disposition que la release publiée au lot 13, § 8.2). Les tests E2E servent une fixture à cette adresse par interception réseau : aucune fixture n'entre dans le build de production.
@@ -41,4 +41,6 @@ Le lot 2 demande un « pipeline de démarrage (DAD § 8.1) ». Le DAD n'est pas 
 
 - L'intégrité (`integrity.json`) n'est pas vérifiée avant les lots 12 et 13.
 - Les décisions de rendu et de guard ci-dessus sont des substituts : le lot 3 remplace le rendu provisoire, le lot 8 les guards d'expression, le lot 11 le profil local.
-- Le poids des validateurs dans le bundle du Runtime est mesuré à l'étape 5 du lot 2 ; le budget du § 8.3 n'est contrôlé qu'au lot 14.
+- **Poids mesuré** (fin du lot 2) : le bundle du Runtime pèse 291 899 octets (44 971 octets en gzip), Lit et les validateurs compris. Le budget du § 8.3 n'est contrôlé qu'au lot 14.
+- **Valeurs de jetons** : les valeurs qui ouvrent un commentaire (`/*`) ou appellent une fonction qui charge une ressource (`url`, `image-set`, `image`, `cross-fade`, `src`, `element`, `paint`, `expression`) sont refusées par le schéma et, séparément, par `design-system` ; un test de `apps/runtime` garde les deux listes alignées. Les guillemets restent permis (noms de polices). Ce n'est pas une liste blanche de syntaxes : une fonction CSS de chargement future ou inconnue passerait. Une liste blanche est à étudier avant la 1.0.0.
+- **Routes qui se recouvrent** : deux routes de mêmes segments littéraux mais de types de paramètre différents sont permises, la première déclarée qui accepte la valeur l'emporte.

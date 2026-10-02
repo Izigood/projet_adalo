@@ -71,10 +71,24 @@ const caseInsensitive = (word: string) =>
 /**
  * A theme value ends up in a CSS custom property. It cannot close the declaration or the rule
  * (`;`, `{`, `}`), open markup (`<`, `>`), escape (`\`), start an at-rule (`@`), fetch a resource
- * (`url(`, `image-set(`) or run legacy script (`expression(`), whatever the letter case.
+ * (`url(`, `image-set(`, `image(`, `cross-fade(`, `src(`, `element(`, `paint(`), run legacy script
+ * (`expression(`) or open a comment that would swallow what follows (`/*`), whatever the letter
+ * case. Quotes stay allowed: font names need them. packages/design-system refuses the same values
+ * (its own copy, as it cannot import this one); apps/runtime has a test that keeps both in step.
  */
+export const RESOURCE_CSS_FUNCTIONS = [
+  'url',
+  'image-set',
+  'image',
+  'cross-fade',
+  'src',
+  'element',
+  'paint',
+  'expression',
+] as const;
+
 export const THEME_TOKEN_VALUE_PATTERN =
-  `^(?![\\s\\S]*(?:${['url', 'image-set', 'expression'].map(caseInsensitive).join('|')})\\s*\\()` +
+  `^(?![\\s\\S]*(?:/\\*|(?:${RESOURCE_CSS_FUNCTIONS.map(caseInsensitive).join('|')})\\s*\\())` +
   '[^;{}<>\\\\@!\\x00-\\x1f]{1,200}$';
 
 /** Token names are dotted, like the design system's: `color.surface`, `space.1`. */

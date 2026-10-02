@@ -21,7 +21,8 @@ export function cssVarName(token: string): string {
 // declaration or a rule, or load a resource, are refused here too: a value that slipped past
 // validation must never reach a stylesheet.
 const SAFE_NAME = /^[a-z][a-zA-Z0-9-]*(\.[a-z0-9][a-zA-Z0-9-]*)*$/;
-const UNSAFE_VALUE = /[;{}<>\\@!]|(?:url|image-set|expression)\s*\(/i;
+const UNSAFE_VALUE =
+  /[;{}<>\\@!]|\/\*|(?:url|image-set|image|cross-fade|src|element|paint|expression)\s*\(/i;
 const hasControlCharacter = (value: string) => [...value].some((char) => char.charCodeAt(0) < 0x20);
 
 function assertSafe(tokens: Tokens): void {

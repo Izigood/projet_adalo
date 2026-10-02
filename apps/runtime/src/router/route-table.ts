@@ -44,7 +44,13 @@ function segmentsOf(path: string, page: Page): readonly Segment[] {
     });
 }
 
-/** At the first position where two routes differ, the literal comes first. */
+/**
+ * At the first position where two routes differ, the literal comes first. Routes of the same
+ * length only compete when they can match the same URL, and for those this is a total order up to
+ * ties; a tie (same literals, parameters of different types) keeps the order of the index, so the
+ * first declared route wins (`Array.prototype.sort` is stable). Routes of different lengths never
+ * match the same URL, so their relative order does not matter.
+ */
 function bySpecificity(a: Route, b: Route): number {
   const length = Math.min(a.segments.length, b.segments.length);
   for (let i = 0; i < length; i += 1) {
@@ -60,8 +66,10 @@ const shapeOf = (route: Route) =>
 
 /**
  * Builds the route table from the pages index and the page files, and refuses an index that
- * contradicts them (a route naming no page, a page that disagrees with its route, two routes the
- * same URL can match, a parameterised or missing initial page). The refusals are reported like
+ * contradicts them (a route naming no page, a page that disagrees with its route, two routes with
+ * the same literals and the same parameter types, a parameterised or missing initial page). Routes
+ * that differ only by the type of a parameter are allowed: the first declared that accepts the
+ * value wins. The refusals are reported like
  * manifest issues, with the file and the JSON Pointer of the faulty value.
  */
 export function buildRouteTable(

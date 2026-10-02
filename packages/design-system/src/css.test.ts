@@ -140,15 +140,45 @@ describe('themeCss with the theme of a project', () => {
     expect(value(root, '--acs-brand-accent')).toBe('#ff00aa');
   });
 
-  it('refuses a value that could close the declaration or the rule', () => {
-    for (const bad of [
-      'red; } body { display: none',
-      'a}b',
-      'a\nb',
-      "url('https://x.test/a.png')",
-      'a\\b',
+  // One case per thing the guard refuses: each would let a value out of its declaration, load a
+  // resource or break the stylesheet, and removing any one check must fail exactly its case.
+  it.each([
+    ['a semicolon', 'red; color: blue'],
+    ['a closing brace', 'a}b'],
+    ['an opening brace', 'a{b'],
+    ['a less-than sign', 'a<b'],
+    ['a greater-than sign', 'a>b'],
+    ['a backslash', 'a\\b'],
+    ['an at sign', '@import x'],
+    ['an exclamation mark', 'red !important'],
+    ['a line break', 'a\nb'],
+    ['a control character', 'a\u0001b'],
+    ['an empty value', ''],
+    ['a value of 201 characters', 'x'.repeat(201)],
+    ['url(', "url('https://x.test/a.png')"],
+    ['URL (', 'URL (x)'],
+    ['image-set(', 'image-set(x 1x)'],
+    ['image(', 'image(x)'],
+    ['cross-fade(', 'cross-fade("https://x.test/a", red 50%)'],
+    ['src(', 'src(x)'],
+    ['element(', 'element(#a)'],
+    ['paint(', 'paint(x)'],
+    ['expression(', 'expression(alert(1))'],
+    ['a comment opening', 'red /* the rest is swallowed'],
+  ])('refuses a value with %s', (_what, bad) => {
+    expect(() => themeCss(theme({ tokens: { 'color.surface': bad } }))).toThrow(/unsafe/);
+  });
+
+  it('accepts what a theme legitimately holds: colours, lengths, calc, var, quoted font names', () => {
+    for (const good of [
+      '#ffffff',
+      'rgb(0 0 0 / 0.5)',
+      'calc(100% - 2rem)',
+      'var(--acs-space-2)',
+      "system-ui, 'Segoe UI', sans-serif",
+      'x'.repeat(200),
     ]) {
-      expect(() => themeCss(theme({ tokens: { 'color.surface': bad } })), bad).toThrow(/unsafe/);
+      expect(() => themeCss(theme({ tokens: { 'color.surface': good } })), good).not.toThrow();
     }
   });
 

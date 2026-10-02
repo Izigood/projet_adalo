@@ -1,6 +1,8 @@
 import { isDomainError } from '@acs/domain';
 import { schemaForPath, validateFiles } from '@acs/project-schema';
 import type { EntitiesFile, PackageFiles, ProjectManifest } from '@acs/project-schema';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { VALID_FIXTURES, consistencyProblems, minimalFixture, referenceFixture } from './index.js';
 
@@ -83,5 +85,16 @@ describe('reference fixture', () => {
     expect(isDomainError(result.error)).toBe(true);
     const issues = (result.error.details as { issues: { file: string; path: string }[] }).issues;
     expect(issues).toMatchObject([{ file: 'project.json', path: '/project/key' }]);
+  });
+});
+
+describe('the title the E2E suite expects', () => {
+  it('is the text of the single node of the minimal fixture', () => {
+    const files = minimalFixture();
+    const pagePath = Object.keys(files).find((path) => schemaForPath(path) === 'Page') as string;
+    const page = files[pagePath] as { nodes: Record<string, { props: { text: string } }> };
+    const [node] = Object.values(page.nodes);
+    const targets = readFileSync(resolve(import.meta.dirname, '../../../e2e/targets.ts'), 'utf8');
+    expect(/MINIMAL_TITLE = '([^']+)'/.exec(targets)?.[1]).toBe(node?.props.text);
   });
 });

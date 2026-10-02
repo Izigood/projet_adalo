@@ -89,6 +89,16 @@ describe('resolveLocation', () => {
     });
   });
 
+  it('lets the first declared route win when two accept the same value', () => {
+    const byNumber = page('by-number', '/n/:id', [{ name: 'id', type: 'integer' }]);
+    const byText = page('by-text', '/n/:name', [{ name: 'name', type: 'string' }]);
+    const numberFirst = tableOf([home, byNumber, byText], home);
+    const textFirst = tableOf([home, byText, byNumber], home);
+    expect(resolveLocation(numberFirst, '#/n/42')).toMatchObject({ route: { path: '/n/:id' } });
+    expect(resolveLocation(textFirst, '#/n/42')).toMatchObject({ route: { path: '/n/:name' } });
+    expect(resolveLocation(numberFirst, '#/n/x')).toMatchObject({ route: { path: '/n/:name' } });
+  });
+
   it('decodes a parameter before typing it', () => {
     const named = page('named', '/n/:name', [{ name: 'name', type: 'string' }]);
     expect(resolveLocation(tableOf([home, named], home), '#/n/a%20b')).toMatchObject({
