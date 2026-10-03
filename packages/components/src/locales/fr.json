@@ -18,8 +18,11 @@
   "component.info.card": "Carte",
   "component.info.indicator": "Indicateur",
   "component.info.progress": "Progression",
+  "component.action.button": "Bouton",
+  "component.action.notification": "Notification",
   "text.alert.info": "Information :",
   "text.alert.success": "Succès :",
   "text.alert.warning": "Attention :",
-  "text.alert.danger": "Erreur :"
+  "text.alert.danger": "Erreur :",
+  "text.notification.dismiss": "Fermer"
 }

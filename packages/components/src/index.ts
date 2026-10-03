@@ -3,6 +3,8 @@ import type { ComponentDefinition, ComponentRegistry } from '@acs/component-sdk'
 import { defineElements } from './base/define.js';
 import type { BaseComponent } from './base/define.js';
 import fr from './locales/fr.json';
+import { actionButton } from './action/button.js';
+import { actionNotification } from './action/notification.js';
 import { infoAlert } from './info/alert.js';
 import { infoBadge } from './info/badge.js';
 import { infoCard } from './info/card.js';
@@ -46,6 +48,8 @@ export const BASE_COMPONENTS: readonly BaseComponent[] = [
   infoCard,
   infoIndicator,
   infoProgress,
+  actionButton,
+  actionNotification,
 ];
 
 export const BASE_DEFINITIONS: readonly ComponentDefinition[] = BASE_COMPONENTS.map(

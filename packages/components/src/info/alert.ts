@@ -5,7 +5,7 @@ import { css, html } from 'lit';
 import { AcsElement } from '../base/acs-element.js';
 import type { BaseComponent } from '../base/define.js';
 import { baseStyles } from '../base/styles.js';
-import { t } from '../i18n.js';
+import { toneLead } from '../base/tones.js';
 
 const propsSchema = Type.Object(
   {
@@ -23,13 +23,6 @@ const propsSchema = Type.Object(
   { additionalProperties: false },
 );
 type Props = Static<typeof propsSchema>;
-
-const LEAD = {
-  info: 'text.alert.info',
-  success: 'text.alert.success',
-  warning: 'text.alert.warning',
-  danger: 'text.alert.danger',
-} as const;
 
 /**
  * A message the user must not miss. Each tone starts with a word that says what it is
@@ -69,7 +62,7 @@ export class AcsInfoAlert extends AcsElement<Props> {
   protected override render() {
     const tone = this.props?.tone ?? 'info';
     return html`<div role="alert">
-      <strong>${t(LEAD[tone])}</strong> ${this.props?.message ?? ''}
+      <strong>${toneLead(tone)}</strong> ${this.props?.message ?? ''}
     </div>`;
   }
 }
