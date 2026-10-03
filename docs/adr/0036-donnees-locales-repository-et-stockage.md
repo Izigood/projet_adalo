@@ -22,6 +22,15 @@ Le § 7.1 donne `Repository` et `QuerySpec`, mais laisse plusieurs points ouvert
 
 **`where`** : refusé tant que le moteur d'expressions n'existe pas, par `QUERY_INVALID`, jamais ignoré en silence.
 
+**Valeurs** (étape 2) : `checkFieldValue(field, value)` vérifie la forme d'une valeur selon son type et ses options, et renvoie la valeur à stocker. Il ne vérifie ni la présence (obligatoire, défaut, unicité : contraintes du Repository), ni l'existence de ce que la valeur désigne (relations).
+
+- **Décimaux** : chaîne canonique à l'échelle du champ (`1.5` devient `1.50`, pas de zéro négatif). Un nombre JavaScript est refusé. Une valeur qui aurait plus de décimales que l'échelle est refusée, pas arrondie. `decimalSortKey` donne une clé dont l'ordre textuel est l'ordre numérique (signe, chiffres sur `precision`, complément à 9 pour un négatif) ; c'est elle qui sera indexée. Somme et moyenne passent par big.js, la moyenne est arrondie à la demie supérieure. Le réglage `Big.DP = 80` et `Big.RM` est global à big.js : le futur moteur d'expressions qui l'utilisera partagera ce réglage.
+- **Regex** : `safeRegExp` compile avec le drapeau `u` (comme Ajv) et refuse les répétitions imbriquées illimitées, les alternatives qui se chevauchent sous une répétition, les produits de répétitions supérieurs à 1000, les références arrière et le look-behind. C'est une heuristique prudente : elle refuse aussi `^([a-z]+-)+[a-z]+$`, qui est linéaire. Elle ne voit pas les cas polynomiaux (`.*.*.*x`), que borne la longueur de la valeur (255 pour un champ `string`). Un motif refusé donne `pattern-unsafe`, il n'est jamais exécuté.
+- **Dates** : `date` doit être un vrai jour du calendrier grégorien (années bissextiles comprises) ; `datetime` est du ISO 8601 en UTC (`Z` obligatoire), avec une heure réelle.
+- **`choice` sur un dictionnaire** : la valeur stockée est l'identifiant de l'enregistrement du dictionnaire (UUID v7), contrôlé comme une `reference` à l'étape 5. Le dossier ne dit pas ce que stocke ce choix ; c'est une lecture, que le Studio du lot 6 devra suivre.
+- **`json`** : données simples seulement, 32 niveaux et 10 000 valeurs au plus, clé `__proto__` refusée. Le `schema` optionnel du champ est « recommandé » (§ 6.3) et n'est pas appliqué.
+- **Longueurs** : comptées en points de code, comme JSON Schema, pas en unités UTF-16.
+
 ## Conséquences
 
 - Le lot 8 branchera `where` sans changer le port.
