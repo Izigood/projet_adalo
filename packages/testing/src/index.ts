@@ -9,6 +9,7 @@ import type { FixtureFiles } from './package-builder.js';
 
 export { consistencyProblems } from './consistency.js';
 export { stableId } from './ids.js';
+export { schemaOf } from './schema-of.js';
 export { addPage } from './add-page.js';
 export type { PageSpec } from './add-page.js';
 export { buildPackage } from './package-builder.js';
