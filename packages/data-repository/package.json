@@ -12,9 +12,12 @@
   },
   "dependencies": {
     "@acs/domain": "workspace:*",
-    "@acs/project-schema": "workspace:*"
+    "@acs/project-schema": "workspace:*",
+    "big.js": "^7.0.1"
   },
   "devDependencies": {
+    "@types/big.js": "^7.0.0",
+    "fast-check": "^4.10.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }
