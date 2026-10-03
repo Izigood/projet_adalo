@@ -16,17 +16,6 @@ export type RenderFailure = {
   readonly error: unknown;
 };
 
-/**
- * Provisional renderers (ADR-0033): the component registry arrives in lot 3 and replaces them.
- * Values go through Lit text bindings, so a prop can never become markup.
- */
-export const PROVISIONAL_RENDERERS: NodeRenderers = {
-  'info.title@1': (node) => {
-    const text = node.props['text'];
-    return html`<h1 class="acs-title">${typeof text === 'string' ? text : ''}</h1>`;
-  },
-};
-
 const MAX_DEPTH = 64;
 
 const failureMarker = (message: string, correlationId: string) => html`

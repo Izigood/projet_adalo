@@ -1,7 +1,9 @@
+import { createRegistry } from '@acs/component-sdk';
+import { BASE_DEFINITIONS } from '@acs/components';
 import { err, ok } from '@acs/domain';
 import type { IdentityProvider } from '@acs/domain';
 import type { Page } from '@acs/project-schema';
-import { CORRUPTED_FIXTURES, addPage as add, minimalFixture } from '@acs/testing';
+import { CORRUPTED_FIXTURES, addPage as add, minimalFixture, stableId } from '@acs/testing';
 import type { FixtureFiles, PageSpec } from '@acs/testing';
 import { html } from 'lit';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,7 +13,6 @@ import { mountRuntime } from './mount.js';
 import type { MountOptions } from './mount.js';
 import { RUNTIME_ROOT_TAG } from './runtime-root.js';
 import type { RuntimeRoot } from './runtime-root.js';
-import { PROVISIONAL_RENDERERS } from './ui/render-page.js';
 
 const memory =
   (files: FixtureFiles): FileSource =>
@@ -41,9 +42,36 @@ async function start(
   return root;
 }
 
+/**
+ * What is on screen, shadow trees included: the components draw themselves in their own shadow
+ * roots, so the text of a page is not in the one of the shell.
+ */
+function deepText(root: ParentNode | ShadowRoot): string {
+  let text = '';
+  for (const node of root.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) text += node.textContent ?? '';
+    else if (node instanceof Element) text += ` ${deepText(node.shadowRoot ?? node)} `;
+  }
+  return text;
+}
+
+/** The first element matching `selector`, looking through shadow roots. */
+function deepFind(root: ParentNode, selector: string): Element | null {
+  const found = root.querySelector(selector);
+  if (found !== null) return found;
+  for (const element of root.querySelectorAll('*')) {
+    const inside = element.shadowRoot === null ? null : deepFind(element.shadowRoot, selector);
+    if (inside !== null) return inside;
+  }
+  return null;
+}
+
 const shown = (root: RuntimeRoot) =>
-  root.shadowRoot?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-const heading = (root: RuntimeRoot) => root.shadowRoot?.querySelector('h1')?.textContent;
+  deepText(root.shadowRoot as ShadowRoot)
+    .replace(/\s+/g, ' ')
+    .trim();
+const heading = (root: RuntimeRoot) =>
+  deepFind(root.shadowRoot as ShadowRoot, 'h1')?.textContent?.trim();
 
 async function go(root: RuntimeRoot, hash: string): Promise<void> {
   window.location.hash = hash;
@@ -244,7 +272,7 @@ describe('error boundaries', () => {
     const root = await start(files, {
       onFailure,
       renderers: {
-        ...PROVISIONAL_RENDERERS,
+        'info.title@1': (node) => html`<h1>${String(node.props['text'])}</h1>`,
         'test.boom@1': () => {
           throw new Error('boom');
         },
@@ -267,5 +295,174 @@ describe('error boundaries', () => {
       renderers: { 'test.custom@1': () => html`<p id="custom">sur mesure</p>` },
     });
     expect(root.shadowRoot?.querySelector('#custom')?.textContent).toBe('sur mesure');
+  });
+});
+
+/** A `matchMedia` whose width the test controls; every query flips at the given minimum width. */
+function fakeViewport(initialWidth: number) {
+  type Listener = () => void;
+  const queries: { min: number; listeners: Set<Listener> }[] = [];
+  let width = initialWidth;
+  const original = window.matchMedia;
+  window.matchMedia = ((query: string) => {
+    const min = Number(/min-width:\s*(\d+)px/.exec(query)?.[1] ?? 0);
+    const entry = { min, listeners: new Set<Listener>() };
+    queries.push(entry);
+    return {
+      get matches() {
+        return width >= min;
+      },
+      addEventListener: (_type: string, listener: Listener) => entry.listeners.add(listener),
+      removeEventListener: (_type: string, listener: Listener) => entry.listeners.delete(listener),
+    } as unknown as MediaQueryList;
+  }) as typeof window.matchMedia;
+  return {
+    resize(next: number) {
+      width = next;
+      for (const entry of queries) for (const listener of entry.listeners) listener();
+    },
+    listeners: () => queries.reduce((sum, entry) => sum + entry.listeners.size, 0),
+    restore() {
+      window.matchMedia = original;
+    },
+  };
+}
+
+/** The home page of the minimal package becomes a grid of two titles, 4 columns, 1 on mobile. */
+function responsiveGrid(files: FixtureFiles): void {
+  const path = Object.keys(files).find((p) => /^pages\/[0-9a-f-]{36}\.json$/.test(p)) as string;
+  const page = files[path] as Page;
+  const [titleId] = Object.keys(page.nodes);
+  const grid = stableId<'node'>('shell.grid');
+  const second = stableId<'node'>('shell.second');
+  page.nodes[grid] = {
+    id: grid,
+    component: 'structure.grid@1',
+    props: { columns: 4 },
+    responsive: { mobile: { columns: 1 }, tablet: { columns: 2 } },
+    children: [titleId as never, second],
+  } as never;
+  page.nodes[second] = {
+    id: second,
+    component: 'info.title@1',
+    props: { text: 'Deuxième' },
+    children: [],
+  } as never;
+  (page as { rootNodeId: string }).rootNodeId = grid;
+}
+
+describe('components, breakpoints and deprecation (lot 3)', () => {
+  const gridColumns = (root: RuntimeRoot) =>
+    deepFind(root.shadowRoot as ShadowRoot, 'acs-structure-grid')?.getAttribute('columns');
+
+  it('draws the page with the real components of the library', async () => {
+    const root = await start(minimalFixture());
+    const title = deepFind(root.shadowRoot as ShadowRoot, 'acs-info-title');
+    expect(title).not.toBeNull();
+    expect(heading(root)).toBe('Bonjour');
+  });
+
+  it('follows the width of the window: the overrides of the breakpoint apply, live', async () => {
+    const viewport = fakeViewport(1280);
+    try {
+      const files = minimalFixture();
+      responsiveGrid(files);
+      const root = await start(files);
+      expect(gridColumns(root)).toBe('4');
+      viewport.resize(768);
+      await root.updateComplete;
+      expect(gridColumns(root)).toBe('2');
+      viewport.resize(360);
+      await root.updateComplete;
+      expect(gridColumns(root)).toBe('1');
+      viewport.resize(1100);
+      await root.updateComplete;
+      expect(gridColumns(root)).toBe('4');
+    } finally {
+      viewport.restore();
+    }
+  });
+
+  it('starts at the breakpoint of the window it opens in', async () => {
+    const viewport = fakeViewport(360);
+    try {
+      const files = minimalFixture();
+      responsiveGrid(files);
+      expect(gridColumns(await start(files))).toBe('1');
+    } finally {
+      viewport.restore();
+    }
+  });
+
+  it('stops listening to the window when it is removed', async () => {
+    const viewport = fakeViewport(1280);
+    try {
+      const root = await start(minimalFixture());
+      expect(viewport.listeners()).toBeGreaterThan(0);
+      root.remove();
+      expect(viewport.listeners()).toBe(0);
+    } finally {
+      viewport.restore();
+    }
+  });
+
+  it('warns once, at start, about each deprecated component the project uses', async () => {
+    const registry = createRegistry();
+    for (const definition of BASE_DEFINITIONS) {
+      const result = registry.register(
+        definition.id === 'info.title'
+          ? { ...definition, deprecated: { since: '1.1.0', replacement: 'info.title@2' } }
+          : definition,
+      );
+      expect(result.ok).toBe(true);
+    }
+    const warnings: unknown[] = [];
+    const files = minimalFixture();
+    addPage(files, 'second', '/second');
+    const root = await start(files, { registry, onWarning: (notice) => warnings.push(notice) });
+    await go(root, '#/second');
+    await go(root, '#/');
+    expect(warnings).toEqual([
+      { ref: 'info.title@1', since: '1.1.0', replacement: 'info.title@2' },
+    ]);
+  });
+
+  it('warns about nothing when the project uses no deprecated component', async () => {
+    const warnings: unknown[] = [];
+    await start(minimalFixture(), { onWarning: (notice) => warnings.push(notice) });
+    expect(warnings).toEqual([]);
+  });
+
+  it('shows a plugin component as unavailable and never asks for a plugin file', async () => {
+    const files = minimalFixture();
+    addPage(files, 'chart', '/chart', { component: 'acme.chart@1' });
+    window.location.hash = '#/chart';
+    const asked: string[] = [];
+    const source: FileSource = (path) => {
+      asked.push(path);
+      return memory(files)(path);
+    };
+    const root = await start(files, { source });
+    expect(deepFind(root.shadowRoot as ShadowRoot, '[role="note"]')?.textContent).toContain(
+      'acme.chart@1',
+    );
+    expect(asked.every((path) => Object.hasOwn(files, path))).toBe(true);
+    expect(asked.some((path) => /plugin/i.test(path))).toBe(false);
+  });
+
+  it('puts a marker, not a broken component, where the props are invalid', async () => {
+    const files = minimalFixture();
+    addPage(files, 'bad', '/bad');
+    const pagePath = Object.keys(files).find((p) => (files[p] as Page).key === 'bad') as string;
+    const bad = files[pagePath] as Page;
+    (Object.values(bad.nodes)[0] as { props: object }).props = {};
+    window.location.hash = '#/bad';
+    const onFailure = vi.fn();
+    const root = await start(files, { onFailure });
+    expect(deepFind(root.shadowRoot as ShadowRoot, 'acs-info-title')).toBeNull();
+    expect(root.shadowRoot?.querySelector('.acs-node-error')).not.toBeNull();
+    expect(onFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ component: 'info.title@1', pageKey: 'bad' }),
+    );
   });
 });

@@ -39,8 +39,10 @@ Le § 7.3 donne `ComponentDefinition` mais cite cinq types qu'aucune section ne 
 
 **Captures de référence** : la spec responsive du lot 3 enregistre des captures à 360, 768 et 1280 px sur les trois navigateurs, avec le suffixe de plateforme de Playwright. Elles dépendent du système et des polices ; une CI sur une autre plateforme produira ses propres références. Les assertions de structure (colonnes de la grille, absence de défilement horizontal) sont portables et restent le garde-fou principal.
 
+**Rendu par le Runtime** (étape 10 du lot 3) : chaque nœud est dessiné par l'élément de son composant, avec les props du point de rupture courant (surcharges permises) validées par `validateProps` ; des props invalides font échouer le nœud, que sa boundary transforme en repère. Le nom de l'élément est la seule valeur mise dans un gabarit comme texte (`unsafeStatic` de `lit/static-html.js`, qui garde les éléments dans le DOM d'un rendu à l'autre, donc l'état d'un composant) : il vient d'une définition que le registre a validée, et le Runtime le contrôle encore par une expression stricte avant de l'utiliser. Le point de rupture suit la fenêtre par `matchMedia`, aux seuils de 600 et 1024 px. Les dépréciations sont signalées une fois au démarrage.
+
 ## Conséquences
 
 - Écart avec le § 7.3 : `propsSchema` est un `TObject`, et le registre refuse ce que le dossier laissait implicite.
 - Le validateur du lot 13 réutilisera `validateProps`, la détection de dépréciation et le registre.
-- La mesure du poids du Runtime (budget du § 8.3) est faite à l'étape de rendu du lot 3 ; le contrôle formel est au lot 14.
+- **Poids mesuré** (étape 10) : le bundle du Runtime, avec les 23 composants, Lit et TypeBox, pèse 383 895 octets (63 896 octets en gzip), contre 45 Ko en gzip avant le lot. Le budget du § 8.3 (moins de 250 Ko compressés) est tenu avec de la marge ; le contrôle formel reste au lot 14.

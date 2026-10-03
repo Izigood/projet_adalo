@@ -1,5 +1,8 @@
 import { LitElement, css, html, nothing } from 'lit';
 import type { TemplateResult } from 'lit';
+import { BREAKPOINT_QUERIES, deprecationNotices } from '@acs/component-sdk';
+import type { Breakpoint, ComponentRegistry, DeprecationNotice } from '@acs/component-sdk';
+import { createBaseRegistry, defineBaseElements } from '@acs/components';
 import { applyTheme } from '@acs/design-system';
 import type { DomainError, IdentityProvider } from '@acs/domain';
 import type { Page } from '@acs/project-schema';
@@ -12,8 +15,9 @@ import { evaluateGuards } from './router/guards.js';
 import type { GuardDecision } from './router/guards.js';
 import { resolveLocation } from './router/match-route.js';
 import type { Location } from './router/match-route.js';
-import { PROVISIONAL_RENDERERS, renderPage } from './ui/render-page.js';
+import { renderPage } from './ui/render-page.js';
 import type { NodeRenderers, RenderFailure } from './ui/render-page.js';
+import { renderersFromRegistry } from './ui/registry-renderers.js';
 
 export const RUNTIME_ROOT_TAG = 'acs-runtime-root';
 
@@ -80,15 +84,25 @@ export class RuntimeRoot extends LitElement {
   source: FileSource | undefined;
   /** Builds the identity provider for the locale of the project; the local one by default. */
   identity: ((locale: string) => IdentityProvider) | undefined;
-  /** How each component is drawn; the provisional set until the registry of lot 3. */
-  renderers: NodeRenderers = PROVISIONAL_RENDERERS;
+  /** The components the project may use; the base library by default. */
+  registry: ComponentRegistry | undefined;
+  /**
+   * How each component is drawn. Left undefined (the normal case) it is built from the registry
+   * and the current breakpoint; a value replaces that, which tests use to inject renderers.
+   */
+  renderers: NodeRenderers | undefined;
   /** Told about every rendering failure; logs to the console by default. */
   onFailure: (failure: RenderFailure) => void = (failure) => console.error('[acs]', failure);
+  /** Told, once at start, about each deprecated component the project uses (EF-CMP-03). */
+  onWarning: (notice: DeprecationNotice) => void = (notice) => console.warn('[acs]', notice);
 
   #view: View = { kind: 'loading' };
   #project: BootedProject | undefined;
   #started: Promise<void> | undefined;
+  #breakpoint: Breakpoint = 'desktop';
+  #queries: MediaQueryList[] = [];
   readonly #onHashChange = () => this.#navigate();
+  readonly #onBreakpointChange = () => this.#updateBreakpoint();
 
   /** Resolves once the project has been read and the first page is shown (or the error is). */
   get settled(): Promise<void> {
@@ -97,13 +111,38 @@ export class RuntimeRoot extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
+    this.#watchBreakpoint();
     this.#started ??= this.#start();
     this.ownerDocument.defaultView?.addEventListener('hashchange', this.#onHashChange);
   }
 
   override disconnectedCallback(): void {
     this.ownerDocument.defaultView?.removeEventListener('hashchange', this.#onHashChange);
+    for (const query of this.#queries)
+      query.removeEventListener('change', this.#onBreakpointChange);
+    this.#queries = [];
     super.disconnectedCallback();
+  }
+
+  /** Follows the width of the window through media queries that flip at 600 and 1024 px. */
+  #watchBreakpoint(): void {
+    const view = this.ownerDocument.defaultView;
+    if (view === null || typeof view.matchMedia !== 'function' || this.#queries.length > 0) return;
+    this.#queries = [
+      view.matchMedia(BREAKPOINT_QUERIES.tablet),
+      view.matchMedia(BREAKPOINT_QUERIES.desktop),
+    ];
+    for (const query of this.#queries) query.addEventListener('change', this.#onBreakpointChange);
+    this.#updateBreakpoint();
+  }
+
+  #updateBreakpoint(): void {
+    const [tablet, desktop] = this.#queries;
+    const next: Breakpoint =
+      desktop?.matches === true ? 'desktop' : tablet?.matches === true ? 'tablet' : 'mobile';
+    if (next === this.#breakpoint) return;
+    this.#breakpoint = next;
+    this.requestUpdate();
   }
 
   async #start(): Promise<void> {
@@ -119,6 +158,8 @@ export class RuntimeRoot extends LitElement {
 
   async #boot(): Promise<void> {
     const doc = this.ownerDocument;
+    this.registry ??= createBaseRegistry();
+    defineBaseElements();
     const source = this.source ?? httpFileSource(new URL('./project/', doc.baseURI).href);
     const result = await boot(
       this.identity === undefined ? { source } : { source, identity: this.identity },
@@ -130,7 +171,19 @@ export class RuntimeRoot extends LitElement {
     this.#project = result.value;
     applyTheme(doc, result.value.theme);
     doc.title = result.value.manifest.project.name;
+    this.#warnAboutDeprecations(result.value);
     this.#navigate();
+  }
+
+  /** Tells, once, which deprecated components the project uses. */
+  #warnAboutDeprecations(project: BootedProject): void {
+    const refs = [...project.pages.values()].flatMap((page) =>
+      Object.values(page.nodes).map((node) => node.component),
+    );
+    for (const notice of deprecationNotices(this.registry ?? createBaseRegistry(), refs)) {
+      // (the registry is set at the start of #boot; the fallback only satisfies the type)
+      this.onWarning(notice);
+    }
   }
 
   #navigate(): void {
@@ -174,6 +227,14 @@ export class RuntimeRoot extends LitElement {
     }
   }
 
+  /** The renderers in force: the injected ones, or those of the registry at this breakpoint. */
+  #renderers(): NodeRenderers {
+    return (
+      this.renderers ??
+      renderersFromRegistry(this.registry ?? createBaseRegistry(), this.#breakpoint)
+    );
+  }
+
   #renderView(view: View): TemplateResult {
     switch (view.kind) {
       case 'loading':
@@ -181,7 +242,7 @@ export class RuntimeRoot extends LitElement {
       case 'boot-error':
         return this.#renderBootError(view.error);
       case 'page':
-        return html`<main>${renderPage(view.page, this.renderers, this.onFailure)}</main>`;
+        return html`<main>${renderPage(view.page, this.#renderers(), this.onFailure)}</main>`;
       case 'not-found':
         return html`<main>
           <h1>${t('runtime.notFound.title')}</h1>

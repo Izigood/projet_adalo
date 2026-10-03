@@ -11,6 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@acs/component-sdk": "workspace:*",
+    "@acs/components": "workspace:*",
     "@acs/design-system": "workspace:*",
     "@acs/domain": "workspace:*",
     "@acs/project-schema": "workspace:*",

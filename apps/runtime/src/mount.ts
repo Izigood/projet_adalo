@@ -1,4 +1,5 @@
 import { applyTheme } from '@acs/design-system';
+import type { ComponentRegistry, DeprecationNotice } from '@acs/component-sdk';
 import type { IdentityProvider } from '@acs/domain';
 import type { FileSource } from './boot/file-source.js';
 import { RUNTIME_ROOT_TAG } from './runtime-root.js';
@@ -11,10 +12,14 @@ export type MountOptions = {
   readonly source?: FileSource;
   /** Builds the identity provider for the locale of the project; the local one by default. */
   readonly identity?: (locale: string) => IdentityProvider;
-  /** How each component is drawn; the provisional set by default. */
+  /** The components the project may use; the base library by default. */
+  readonly registry?: ComponentRegistry;
+  /** How each component is drawn; by default built from the registry. */
   readonly renderers?: NodeRenderers;
   /** Told about every rendering failure; logs to the console by default. */
   readonly onFailure?: (failure: RenderFailure) => void;
+  /** Told about each deprecated component the project uses; warns in the console by default. */
+  readonly onWarning?: (notice: DeprecationNotice) => void;
 };
 
 /**
@@ -26,8 +31,10 @@ export function mountRuntime(container: HTMLElement, options: MountOptions = {})
   const root = container.ownerDocument.createElement(RUNTIME_ROOT_TAG);
   if (options.source !== undefined) root.source = options.source;
   if (options.identity !== undefined) root.identity = options.identity;
+  if (options.registry !== undefined) root.registry = options.registry;
   if (options.renderers !== undefined) root.renderers = options.renderers;
   if (options.onFailure !== undefined) root.onFailure = options.onFailure;
+  if (options.onWarning !== undefined) root.onWarning = options.onWarning;
   container.append(root);
   return root;
 }

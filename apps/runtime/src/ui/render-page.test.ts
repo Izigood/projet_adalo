@@ -3,7 +3,7 @@ import { html, render } from 'lit';
 import type { Page, UINode } from '@acs/project-schema';
 import { stableId } from '@acs/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { PROVISIONAL_RENDERERS, renderPage } from './render-page.js';
+import { renderPage } from './render-page.js';
 import type { NodeRenderers, RenderFailure } from './render-page.js';
 
 const id = (name: string) => stableId<'node'>(`render.${name}`);
@@ -23,10 +23,10 @@ const pageOf = (root: string, nodes: UINode[]): Page => ({
   nodes: Object.fromEntries(nodes.map((n) => [n.id, n])),
 });
 
-const text = (name: string, value: string) => node(name, 'info.title@1', [], { text: value });
+const text = (name: string, value: string) => node(name, 'test.title@1', [], { text: value });
 const box = (children: readonly unknown[]) => html`<section>${children}</section>`;
 const RENDERERS: NodeRenderers = {
-  ...PROVISIONAL_RENDERERS,
+  'test.title@1': (node) => html`<h1>${String(node.props['text'])}</h1>`,
   'test.box@1': (_node, children) => box(children),
   'test.boom@1': () => {
     throw new Error('renderer failed');
@@ -44,7 +44,7 @@ function show(page: Page, renderers: NodeRenderers = RENDERERS) {
 }
 
 describe('renderPage', () => {
-  it('renders the title of the provisional info.title@1 as text', () => {
+  it('renders the text prop of a node through its renderer, as text', () => {
     const { container, failures } = show(pageOf('a', [text('a', 'Bonjour')]));
     expect(container.querySelector('h1')?.textContent).toBe('Bonjour');
     expect(failures).toEqual([]);

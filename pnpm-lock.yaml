@@ -202,6 +202,12 @@ importers:
 
   apps/runtime:
     dependencies:
+      '@acs/component-sdk':
+        specifier: workspace:*
+        version: link:../../packages/component-sdk
+      '@acs/components':
+        specifier: workspace:*
+        version: link:../../packages/components
       '@acs/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
