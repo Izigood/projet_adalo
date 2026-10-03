@@ -67,6 +67,18 @@ export function decimalSortKey(canonical: string, format: DecimalFormat): string
   return `0${[...digits].map((digit) => String(9 - Number(digit))).join('')}`;
 }
 
+/**
+ * A decimal given as a filter value: any number of digits, in plain notation, as the plain text
+ * of the number (a filter may ask for `gt 0.001` on a field of scale 2). Undefined if it is not one.
+ */
+export function looseDecimal(input: unknown): string | undefined {
+  if (typeof input !== 'string' || input.length > MAX_TEXT_LENGTH || !DECIMAL_TEXT.test(input)) {
+    return undefined;
+  }
+  const value = new Big(input);
+  return value.eq(0) ? '0' : value.toFixed();
+}
+
 export function compareDecimals(a: string, b: string): number {
   return new Big(a).cmp(b);
 }

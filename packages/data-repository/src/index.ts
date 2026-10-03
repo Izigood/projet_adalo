@@ -41,6 +41,9 @@ export type {
   OpenEnvironment,
   OpenOptions,
 } from './storage/database.js';
+export { runQuery } from './query/run.js';
+export type { QueryRow, QueryRun } from './query/run.js';
+export type { AccessKind, QueryPlan } from './query/plan.js';
 export { constraintError, normaliseRecord } from './repository/constraints.js';
 export type { Violation } from './repository/constraints.js';
 export { referenceLookups, uniqueLookups } from './repository/lookups.js';
