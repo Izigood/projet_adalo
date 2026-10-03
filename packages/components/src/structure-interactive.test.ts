@@ -342,3 +342,59 @@ describe('structure.sidePanel', () => {
     expect(panel.shadowRoot?.querySelector('b')).toBeNull();
   });
 });
+
+describe('state that survives the Runtime drawing the page again', () => {
+  // The Runtime gives every component a new `props` object at each render, with the same values
+  // (a breakpoint change, coming back to the page): what the user did must not be undone.
+  it('tabs keep the tab the user chose, and follow the manifest when it asks for another one', async () => {
+    const props = { label: 'Fiche', tabs: ['Résumé', 'Détail', 'Historique'], selected: 0 };
+    const tabs = (await mount('acs-structure-tabs', props, [
+      child('p', 'A'),
+      child('p', 'B'),
+      child('p', 'C'),
+    ])) as AcsStructureTabs;
+    tabButtons(tabs)[2]?.click();
+    await tabs.updateComplete;
+    tabs.props = { ...props };
+    await tabs.updateComplete;
+    expect(shownPanels(tabs)).toEqual([false, false, true]);
+    tabs.props = { ...props, selected: 1 };
+    await tabs.updateComplete;
+    expect(shownPanels(tabs)).toEqual([false, true, false]);
+  });
+
+  it('tabs stay inside the tabs they have when there are fewer of them than before', async () => {
+    const props = { label: 'Fiche', tabs: ['Résumé', 'Détail', 'Historique'], selected: 0 };
+    const tabs = (await mount('acs-structure-tabs', props)) as AcsStructureTabs;
+    tabButtons(tabs)[2]?.click();
+    await tabs.updateComplete;
+    tabs.props = { ...props, tabs: ['Résumé', 'Détail'] };
+    await tabs.updateComplete;
+    expect(tabButtons(tabs).map((button) => button.getAttribute('aria-selected'))).toEqual([
+      'false',
+      'true',
+    ]);
+  });
+
+  it('an accordion keeps the sections the user opened, and follows the manifest when it changes', async () => {
+    const props = {
+      label: 'Questions',
+      items: ['Un', 'Deux', 'Trois'],
+      open: [0],
+      multiple: false,
+    };
+    const accordion = (await mount('acs-structure-accordion', props)) as AcsStructureAccordion;
+    const expanded = () =>
+      [...(accordion.shadowRoot?.querySelectorAll<HTMLButtonElement>('.header') ?? [])].map(
+        (button) => button.getAttribute('aria-expanded'),
+      );
+    accordion.shadowRoot?.querySelectorAll<HTMLButtonElement>('.header')[2]?.click();
+    await accordion.updateComplete;
+    accordion.props = { ...props };
+    await accordion.updateComplete;
+    expect(expanded()).toEqual(['false', 'false', 'true']);
+    accordion.props = { ...props, open: [1] };
+    await accordion.updateComplete;
+    expect(expanded()).toEqual(['false', 'true', 'false']);
+  });
+});

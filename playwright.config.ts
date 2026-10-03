@@ -22,7 +22,14 @@ export default defineConfig({
   // Negative controls (tools/gate-tests) shorten it: a failing assertion otherwise waits 5 s.
   expect: { timeout: Number(process.env['E2E_EXPECT_TIMEOUT'] ?? 5000) },
   reporter: [['list']],
-  use: { trace: 'retain-on-failure' },
+  // An action (click, focus...) on an element that does not exist waits for its whole timeout, which
+  // by default is the one of the test: 120 s here. Twice the one of the assertions is plenty for an
+  // element that is there, and makes a missing one fail fast, in the negative controls of the gate
+  // as in a real regression.
+  use: {
+    trace: 'retain-on-failure',
+    actionTimeout: Number(process.env['E2E_EXPECT_TIMEOUT'] ?? 5000) * 2,
+  },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },

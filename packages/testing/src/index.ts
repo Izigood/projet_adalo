@@ -1,5 +1,6 @@
 import { completeFixture } from './fixtures/complete.js';
 import { CORRUPTED_FIXTURES } from './fixtures/corrupted.js';
+import { interactiveFixture } from './fixtures/interactive.js';
 import { legacyV0ExpectedV1, legacyV0Fixture } from './fixtures/legacy-v0.js';
 import { minimalFixture } from './fixtures/minimal.js';
 import { referenceFixture } from './fixtures/reference.js';
@@ -16,6 +17,7 @@ export type { FixtureDocuments, FixtureFiles } from './package-builder.js';
 export {
   CORRUPTED_FIXTURES,
   completeFixture,
+  interactiveFixture,
   legacyV0ExpectedV1,
   legacyV0Fixture,
   minimalFixture,
@@ -30,4 +32,5 @@ export const VALID_FIXTURES: Readonly<Record<string, () => FixtureFiles>> = {
   reference: referenceFixture,
   complete: completeFixture,
   responsive: responsiveFixture,
+  interactive: interactiveFixture,
 };

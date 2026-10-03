@@ -98,6 +98,16 @@ export class AcsActionConfirmation extends AcsElement<Props> {
     this.shadowRoot?.querySelector<HTMLElement>(first)?.focus();
   }
 
+  /**
+   * Gives the focus back to the button that opened the dialog, whatever closed it. The native
+   * `<dialog>` is meant to do it, but it restores the element that had the focus, and a button
+   * pressed with the mouse does not take the focus in Safari: a mouse user would be left with the
+   * focus on nothing (found by the E2E suite on WebKit).
+   */
+  #restoreFocus(): void {
+    this.shadowRoot?.querySelector<HTMLElement>('button[aria-haspopup="dialog"]')?.focus();
+  }
+
   #answer(answer: 'confirm' | 'cancel'): void {
     const dialog = this.#dialog();
     if (typeof dialog?.close === 'function') dialog.close();
@@ -117,6 +127,7 @@ export class AcsActionConfirmation extends AcsElement<Props> {
         aria-labelledby="title"
         aria-describedby="message"
         @cancel=${() => this.emit('cancel')}
+        @close=${() => this.#restoreFocus()}
       >
         <h2 class="title" id="title">${this.props?.title ?? ''}</h2>
         <p class="message" id="message">${this.props?.message ?? ''}</p>

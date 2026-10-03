@@ -272,6 +272,21 @@ describe('action.confirmation', () => {
     expect(seen).toEqual(['acs-cancel']);
   });
 
+  it.each([
+    ['Escape', (element: Element) => dialog(element).dispatchEvent(new Event('close'))],
+    ['Annuler', (element: Element) => cancelButton(element)?.click()],
+    ['Confirmer', (element: Element) => confirmButton(element)?.click()],
+  ])(
+    'gives the focus back to its button when it is closed with %s (a mouse press does not focus a button in Safari)',
+    async (_how, close) => {
+      const element = await mount('acs-action-confirmation', props);
+      trigger(element)?.click();
+      expect(root(element).activeElement).not.toBe(trigger(element));
+      close(element);
+      expect(root(element).activeElement).toBe(trigger(element));
+    },
+  );
+
   it('says nothing before the user answers', async () => {
     const element = await mount('acs-action-confirmation', props);
     const seen = events(element);

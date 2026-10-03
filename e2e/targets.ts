@@ -14,3 +14,6 @@ export const MINIMAL_TITLE = 'Bonjour';
 
 /** The title of the page of the responsive fixture (pinned by its digest). */
 export const RESPONSIVE_TITLE = 'Tableau de bord';
+
+/** The title of the page of the interactive fixture (pinned by its digest). */
+export const INTERACTIVE_TITLE = 'Interactions';

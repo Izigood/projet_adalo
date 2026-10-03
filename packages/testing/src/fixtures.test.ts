@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   VALID_FIXTURES,
   consistencyProblems,
+  interactiveFixture,
   minimalFixture,
   referenceFixture,
   responsiveFixture,
@@ -115,5 +116,17 @@ describe('the title the E2E suite expects', () => {
     );
     const targets = readFileSync(resolve(import.meta.dirname, '../../../e2e/targets.ts'), 'utf8');
     expect(/RESPONSIVE_TITLE = '([^']+)'/.exec(targets)?.[1]).toBe(title?.props.text);
+  });
+  it('is the level 1 title of the interactive fixture', () => {
+    const files = interactiveFixture();
+    const pagePath = Object.keys(files).find((path) => schemaForPath(path) === 'Page') as string;
+    const page = files[pagePath] as {
+      nodes: Record<string, { component: string; props: { text?: string; level?: number } }>;
+    };
+    const title = Object.values(page.nodes).find(
+      (node) => node.component === 'info.title@1' && node.props.level === 1,
+    );
+    const targets = readFileSync(resolve(import.meta.dirname, '../../../e2e/targets.ts'), 'utf8');
+    expect(/INTERACTIVE_TITLE = '([^']+)'/.exec(targets)?.[1]).toBe(title?.props.text);
   });
 });

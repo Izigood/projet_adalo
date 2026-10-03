@@ -84,9 +84,17 @@ export class AcsActionNotification extends AcsElement<Props> {
 
   declare dismissed: boolean;
 
+  /** The message and tone last shown: a different one is shown even if the previous was closed. */
+  #shown: string | undefined;
+
   protected override willUpdate(changed: PropertyValues<this>): void {
-    // A new message is shown even if the previous one was closed.
-    if (changed.has('props')) this.dismissed = false;
+    if (changed.has('props')) {
+      // The same message again (the Runtime draws the page again) must not bring back a
+      // notification the user closed.
+      const shown = JSON.stringify([this.props?.message ?? '', this.props?.tone ?? 'info']);
+      if (shown !== this.#shown) this.dismissed = false;
+      this.#shown = shown;
+    }
     this.reflect({ tone: this.props?.tone ?? 'info' });
   }
 

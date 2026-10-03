@@ -159,3 +159,27 @@ describe('action.notification', () => {
     expect(element.shadowRoot?.querySelector('img')).toBeNull();
   });
 });
+
+describe('action.notification, when the Runtime draws the page again', () => {
+  const box = (element: Element) => element.shadowRoot?.querySelector('[role="status"]');
+
+  it('does not bring back a notification the user closed when the message has not changed', async () => {
+    const props = { message: 'Projet enregistré', tone: 'success' };
+    const element = await mount('acs-action-notification', props);
+    element.shadowRoot?.querySelector<HTMLButtonElement>('.close')?.click();
+    await element.updateComplete;
+    element.props = { ...props };
+    await element.updateComplete;
+    expect(box(element)).toBeNull();
+  });
+
+  it('shows it again when the message, or its tone, is not the same', async () => {
+    const props = { message: 'Projet enregistré', tone: 'success' };
+    const element = await mount('acs-action-notification', props);
+    element.shadowRoot?.querySelector<HTMLButtonElement>('.close')?.click();
+    await element.updateComplete;
+    element.props = { ...props, tone: 'danger' };
+    await element.updateComplete;
+    expect(box(element)).not.toBeNull();
+  });
+});

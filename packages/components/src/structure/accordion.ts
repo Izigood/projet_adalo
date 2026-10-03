@@ -80,12 +80,22 @@ export class AcsStructureAccordion extends AcsElement<Props> {
 
   declare openIndexes: readonly number[];
 
+  /** The opening the manifest asked for the last time: only a change of it resets the sections. */
+  #requested: string | undefined;
+
   protected override willUpdate(changed: PropertyValues<this>): void {
-    if (changed.has('props')) {
-      const count = this.props?.items.length ?? 0;
-      const open = (this.props?.open ?? []).filter((index) => index < count);
-      this.openIndexes = this.props?.multiple === true ? open : open.slice(0, 1);
+    if (!changed.has('props')) return;
+    const count = this.props?.items.length ?? 0;
+    const open = (this.props?.open ?? []).filter((index) => index < count);
+    const requested = JSON.stringify([this.props?.open ?? [], this.props?.multiple === true]);
+    // A new `props` object with the same values (the Runtime draws the page again) must not close
+    // the sections the user opened; a different request from the manifest does reset them.
+    if (requested === this.#requested && this.openIndexes !== undefined) {
+      this.openIndexes = this.openIndexes.filter((index) => index < count);
+      return;
     }
+    this.#requested = requested;
+    this.openIndexes = this.props?.multiple === true ? open : open.slice(0, 1);
   }
 
   protected override updated(): void {

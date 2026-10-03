@@ -196,7 +196,48 @@ describe('e2e gate (REC-10): Runtime responsive', () => {
   }, 120_000);
 });
 
+/** The title of the interactive fixture, read as data like the others. */
+const interactiveTitle =
+  /INTERACTIVE_TITLE = '([^']+)'/.exec(
+    readFileSync(resolve(repoRoot, 'e2e/targets.ts'), 'utf8'),
+  )?.[1] ?? '';
+
+/**
+ * A page that has everything the interaction specs look for before they start (the title, three
+ * tabs, the buttons « Actions » and « Supprimer ») but no behaviour at all: nothing opens, nothing
+ * moves, nothing is announced. Only a spec that really plays the components can fail on it.
+ */
+const staticInteractivePage = (title: string): string =>
+  `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Statique</title></head><body><main>` +
+  `<h1>${title}</h1>` +
+  `<div role="tablist" aria-label="Fiche"><button role="tab" aria-selected="true">Résumé</button>` +
+  `<button role="tab" aria-selected="false">Détail</button><button role="tab" aria-selected="false">Historique</button></div>` +
+  `<button>Actions</button><button>Supprimer</button>` +
+  `<button aria-expanded="true">Un</button><button aria-expanded="false">Deux</button><button aria-expanded="false">Trois</button>` +
+  `</main></body></html>`;
+
+describe('e2e gate (REC-10): Runtime interactions', () => {
+  it('fails every interaction spec against a page that shows the title but ignores the project', async () => {
+    const results = await runSpecs(
+      'Runtime interactions',
+      await serve(runtimePage(interactiveTitle, '')),
+    );
+    expect(results).toHaveLength(12);
+    expect(results.filter((result) => result.ok).map((result) => result.title)).toEqual([]);
+  }, 180_000);
+
+  it('fails every interaction spec against a page that has all the right markup but no behaviour', async () => {
+    const results = await runSpecs(
+      'Runtime interactions',
+      await serve(staticInteractivePage(interactiveTitle)),
+    );
+    expect(results).toHaveLength(12);
+    expect(results.filter((result) => result.ok).map((result) => result.title)).toEqual([]);
+  }, 180_000);
+});
+
 it('e2e gate: the titles of the fixtures were read from the E2E targets', () => {
   expect(minimalTitle).not.toBe('');
   expect(responsiveTitle).not.toBe('');
+  expect(interactiveTitle).not.toBe('');
 });

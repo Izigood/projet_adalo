@@ -70,11 +70,19 @@ export class AcsStructureTabs extends AcsElement<Props> {
 
   declare selectedIndex: number;
 
+  /** The tab the manifest asked for the last time: only a change of it moves the selection. */
+  #requested: number | undefined;
+
   protected override willUpdate(changed: PropertyValues<this>): void {
-    if (changed.has('props')) {
-      const last = (this.props?.tabs.length ?? 1) - 1;
-      this.selectedIndex = Math.min(Math.max(this.props?.selected ?? 0, 0), last);
-    }
+    if (!changed.has('props')) return;
+    const last = (this.props?.tabs.length ?? 1) - 1;
+    const requested = this.props?.selected ?? 0;
+    // The Runtime gives a new `props` object at every render (a breakpoint change, a navigation
+    // back to the page), with the same values: the tab the user chose must survive that. The
+    // selection only goes back to what the manifest says when the manifest says something else.
+    const wanted = requested === this.#requested ? this.selectedIndex : requested;
+    this.#requested = requested;
+    this.selectedIndex = Math.min(Math.max(wanted ?? requested, 0), last);
   }
 
   protected override updated(): void {
