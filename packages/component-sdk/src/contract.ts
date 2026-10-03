@@ -91,6 +91,10 @@ function accessibleName(element: Element): string {
  * that really renders honours what the definition says (the role is there, the accessible name is
  * the one declared, interactive components can take focus, nothing breaks the CSP of dossier 8.1).
  * Returns every finding; an empty list is a pass. It renders into `doc` and cleans up after itself.
+ *
+ * What it does not do: it presses no key. `accessibility.keyboard` is checked as declared (and
+ * non-empty for an interactive role), not as working; the keyboard behaviour of each component is
+ * proved by that component's own tests and by the interaction E2E suite (ADR-0034).
  */
 export async function contractFindings(
   definition: ComponentDefinition,

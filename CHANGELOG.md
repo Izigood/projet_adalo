@@ -2,6 +2,71 @@
 
 Format inspiré de Keep a Changelog. Un lot terminé = une entrée et un tag `vX.Y.0` (dossier § 9.6).
 
+## [0.3.0] — Lot 3 « Registre et composants de base » — 2026-10-03
+
+Tag proposé : **`v0.3.0`** (non posé : à créer après validation du lot). Exigences : EF-CMP-01, EF-CMP-03, EF-UI-04 (rendu).
+
+### Ajouté
+
+- **`component-sdk`** : le contrat `ComponentDefinition` et les types que le § 7.3 cite sans les définir (ADR-0034), une validation à l'enregistrement (34 règles, chacune avec un cas négatif ; erreur `COMPONENT_INVALID`), le registre par identifiant et par majeure (deux majeures coexistent, chacune avec sa balise), les props validées par `Value` de TypeBox (interprété, sans génération de code) avec les valeurs par défaut du schéma, les points de rupture (600 et 1024 px) et les surcharges `responsive` limitées aux props que le composant déclare, la détection des dépréciations, et le plan de migration avec son diff.
+- **Kit de contrat** (`contractFindings`) : il vérifie la définition puis l'élément réellement rendu (rôle présent, nom accessible, focalisable pour un rôle interactif, ni attribut `style` ni gestionnaire en ligne, compatibles avec la CSP du § 8.1).
+- **23 composants** dans `packages/components` : structure (page, section, pile, grille, onglets, panneau latéral, accordéon), navigation (menu, barre d'onglets, fil d'Ariane, bouton retour, lien), information (texte, titre, badge, alerte, carte, indicateur, progression) et actions (bouton, menu d'actions, confirmation, notification). Les textes visibles et les noms de palette sont dans `locales/fr.json`.
+- **Plugin** : le schéma `PluginManifest` est spécifié et validé, et aucun code ne charge un plugin (D-05). Un plugin ne peut pas prendre la place d'une famille de composants de base, ses éléments sont `acs-x-…`.
+- **Runtime** : il dessine les pages avec le registre. Chaque nœud est l'élément de son composant, avec les props du point de rupture courant, suivi en direct par `matchMedia` ; des props invalides donnent un repère sur ce nœud ; un composant inconnu donne un repère neutre ; les dépréciations sont signalées une fois au démarrage. Bundle : 384 Ko bruts, 64 Ko en gzip (45 Ko avant le lot ; budget du § 8.3 : 250 Ko).
+- **Tests partagés** : fixtures `responsive` et `interactive` (empreintes épinglées), `addPage`, `routingPage`.
+- **ADR** : 0034 (contrat, registre, rendu) et 0035 (`axe-core` en dépendance de test, MPL-2.0).
+
+### Critères de sortie du lot 3
+
+| Critère                                                               | Preuve                                                                                                                                                                                                                                                                                                               |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page responsive rendue à 360, 768 et 1280 px (captures de référence)  | `e2e/responsive.spec.ts` sur Chromium, Firefox et WebKit : colonnes de la grille mesurées sur le style calculé (1, 2, 4), aucun défilement horizontal, menu en colonne puis en ligne, redimensionnement à chaud, 9 captures de référence (0,1 % de pixels toléré), `axe-core` aux trois largeurs et en thème sombre. |
+| Un composant sans métadonnées d'accessibilité fait échouer le contrat | `contract.test.ts` de `component-sdk` (rôle vide ou inconnu, source de nom absente, aucune touche pour un rôle interactif, prop requise inexistante) ; `contract.test.ts` de `components` applique le kit aux 23 composants.                                                                                         |
+| EF-CMP-01, EF-CMP-03                                                  | `registry.test.ts` (34 règles), `lifecycle.test.ts` (dépréciation, migration en chaîne sur copies, diff), `runtime-root.test.ts` (avertissement une fois au démarrage).                                                                                                                                              |
+| Contrôles négatifs (REC-10)                                           | `e2e-gate.test.ts` : une page qui ignore le projet fait échouer toutes les specs ; une page qui ignore seulement la fenêtre fait échouer exactement les specs de points de rupture ; une page qui a tout le balisage mais aucun comportement fait échouer les 12 specs d'interaction.                                |
+| `pnpm verify` vert                                                    | 990 tests unitaires, 129 tests de gates, 138 tests E2E sur 3 navigateurs, 10 contrôles de la gate E2E (exécution du commit e836e69).                                                                                                                                                                                 |
+
+### Ce que la revue et les E2E ont trouvé (et qui est corrigé)
+
+- **Onglets (revue, majeur)** : les onglets écrivaient `role="tabpanel"` sur leurs enfants, et une pile, une grille ou une page utilisée comme panneau réécrivait `role="none"` à sa mise à jour. Chaque panneau est maintenant une `<div>` du shadow DOM, remplie par un slot nommé, avec `aria-controls` et `aria-labelledby` (l'accordéon aussi).
+- **Retour de focus de la confirmation (E2E, WebKit)** : un bouton cliqué à la souris ne prend pas le focus dans Safari, donc le `<dialog>` n'avait rien à restaurer. La confirmation rend elle-même le focus à son bouton.
+- **État perdu à chaque rendu (E2E)** : le Runtime donne de nouveaux objets de props à chaque rendu ; les onglets revenaient au premier, l'accordéon se refermait, une notification fermée réapparaissait. L'état n'est réinitialisé que si le manifeste demande autre chose.
+- **Specs qui ne prouvaient rien** : « sans défilement horizontal » et `axe-core` passaient sur une page vide ; la spec exige maintenant que la page entière soit rendue, et asserte l'état avant d'auditer.
+- **Capture trop tolérante** : à 2 %, un bouton masqué (0,4 % de la page) passait ; le seuil est de 0,1 %.
+- **Contrastes** : les paires de texte `success`, `warning`, `danger` et `primary` sur `surface-alt` sont verrouillées dans le test.
+
+### Écarts par rapport au dossier
+
+1. **`propsSchema` est un `TObject`**, pas un `TSchema` quelconque, et le registre refuse ce que le § 7.3 laissait implicite (ADR-0034).
+2. **Types du § 7.3 définis par moi** : `EventDefinition`, `SlotDefinition`, `BindingDefinition`, `Capability`, `ComponentMigration`, absents du dossier.
+3. **Nouveau code d'erreur `COMPONENT_INVALID`** dans le catalogue du § 7.7 (« repris et complété »).
+4. **Composants statiques** : pas de données ni de liaison avant le lot 8, pas d'événements consommés avant le lot 10 ; ils émettent des `CustomEvent` `acs-<événement>`.
+5. **`axe-core` (MPL-2.0)** autorisé en dépendance de développement par l'ADR-0035, ce qui lève l'écart n° 2 du lot 0.
+6. **Plugins** : spécifiés, validés, jamais chargés ; un plugin s'affiche comme un composant non disponible.
+
+### Dette et points ouverts
+
+- **Le kit de contrat ne joue aucune touche** : il vérifie que `keyboard` est déclaré et non vide pour un rôle interactif, pas que les touches déclarées fonctionnent. Le comportement clavier est couvert par les tests des composants (happy-dom) et par les E2E d'interaction (vrais navigateurs), composant par composant.
+- **Captures non portables** : les neuf références portent le suffixe `win32` ; sur un autre système il faut les régénérer (`pnpm exec playwright test responsive --update-snapshots`). Aucune CI n'existe encore pour en produire.
+- **Piège de focus de `<dialog>`** : sur WebKit, `Tab` depuis le dernier bouton d'une boîte modale sort vers l'interface du navigateur au lieu de boucler (Chromium et Firefox bouclent) ; la spécification l'autorise. Le test vérifie que le focus ne tombe jamais sur la page derrière.
+- **`info.alert` a toujours `role="alert"`** : plusieurs alertes présentes à l'ouverture d'une page seront toutes annoncées. C'est un choix : la définition n'a qu'un rôle. À reprendre si un composant doit choisir `status` ou `alert` selon le ton.
+- **Pas de recherche par frappe** dans le menu d'actions (non exigée).
+- **Toujours ouverts depuis les lots précédents** : pas de contrôle des licences, osv-scanner jamais exécuté (avertissement), pas de CI, Node 26 non LTS, `pnpm --filter <paquet> test` échoue pour les paquets sans configuration Vitest locale.
+
+### Erreurs reconnues
+
+- **Timeout de worker Vitest, deuxième round** : mon correctif du lot 2 (découper le test de propriété en lots) ne suffisait pas, et son commentaire affirmait à tort qu'il rendait la main à la boucle d'événements. Le vrai remède est un `setTimeout(0)` après chaque lot ; ADR-0025 corrigé au lot 2, correctif `fcfdffd`.
+- **Mutation laissée en place** : pendant l'étape 9, une commande de mutations s'est interrompue avant de restaurer `alert.ts`. Je l'ai vu en contrôlant `git status`, restauré, et les mutations passent depuis par un `try/finally`.
+- **Espace insécable** : l'étape 8b a échoué au lint à cause d'un caractère brut produit par Prettier ; le caractère est construit à partir de son code.
+- **Brief du reviewer inexact** : j'avais cité `packages/design-system` dans le diff du lot alors qu'il n'y a aucune modification.
+
+### Revue indépendante (sous-agent `reviewer`)
+
+Verdict : « lot à reprendre » pour un seul défaut majeur (onglets), aucun bloquant. Le sous-agent a exécuté `verify` et neuf mutations, toutes détectées, et confirmé qu'`unsafeStatic` et `unsafeCSS` sont employés de façon correcte et bornée.
+
+- **Corrigés avec test** : M1, m1, m2 (panneaux), m5 (seuil des captures), m6 (contrastes, `axe-core` à 768 px et en sombre), m3 (E2E d'interaction dans les trois navigateurs).
+- **Documentés** : m4 (ce que couvre le kit), m5 (régénération des captures), m7 (rôle de l'alerte).
+
 ## [0.2.0] — Lot 2 « Runtime shell » — 2026-10-02
 
 Tag proposé : **`v0.2.0`** (non posé : à créer après validation du lot). Exigences : EF-NAV-01, EF-NAV-03 (partiel), EF-THM-01, EF-SEC-02.
