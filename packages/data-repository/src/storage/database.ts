@@ -2,6 +2,7 @@ import { domainError, err, ok } from '@acs/domain';
 import type { DomainError, Result } from '@acs/domain';
 import { PROJECT_KEY_PATTERN } from '@acs/project-schema';
 import Dexie from 'dexie';
+import { planMigration } from '../migrations/plan.js';
 import type { DataLayout, SchemaSnapshot } from './layout.js';
 
 /** `test` holds the data of the preview, `prod` those of the published application (RG-04). */
@@ -67,7 +68,8 @@ export function storageError(error: unknown): DomainError {
   });
 }
 
-function dexieFor(name: string, source: IndexedDbSource | undefined): Dexie | undefined {
+/** A connection to the data base `name`, from `source` or the browser; undefined without IndexedDB. */
+export function dexieFor(name: string, source: IndexedDbSource | undefined): Dexie | undefined {
   const indexedDB = source?.indexedDB ?? globalThis.indexedDB;
   if (indexedDB === undefined) return undefined;
   const keyRange = source?.IDBKeyRange ?? globalThis.IDBKeyRange;
@@ -77,7 +79,7 @@ function dexieFor(name: string, source: IndexedDbSource | undefined): Dexie | un
   );
 }
 
-const isMissing = (error: unknown): boolean =>
+export const isMissing = (error: unknown): boolean =>
   typeof error === 'object' &&
   error !== null &&
   (error as { name?: unknown }).name === 'NoSuchDatabaseError';
@@ -108,7 +110,17 @@ export async function openEnvironment(
       return await create(name, options, finish);
     }
     const row = (await existing.table('_meta').get('schema')) as SchemaRow | undefined;
-    if (row?.signature === layout.signature) return finish(existing);
+    // Same stores is not the same schema: a field added or converted leaves the stores as they
+    // are. With the schema the data base recorded, it is the migration plan that says whether
+    // anything differs; without it (older data bases) only the stores can be compared.
+    const current =
+      row?.schema === undefined
+        ? row?.signature === layout.signature
+        : (() => {
+            const plan = planMigration(row.schema, layout.schema);
+            return plan.ok && plan.value.steps.length === 0;
+          })();
+    if (current) return finish(existing);
     existing.close();
     return err(
       domainError('MIGRATION_BLOCKED', 'the data base was built from another schema', {

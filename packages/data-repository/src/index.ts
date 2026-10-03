@@ -42,6 +42,9 @@ export type {
   OpenEnvironment,
   OpenOptions,
 } from './storage/database.js';
+export { migrateEnvironment, previewMigration } from './migrations/apply.js';
+export type { MigrationOptions, MigrationResult, MigrationStage } from './migrations/apply.js';
+export { restoreBackup } from './migrations/backup.js';
 export { conversionFor } from './migrations/convert.js';
 export type { Conversion } from './migrations/convert.js';
 export { planMigration } from './migrations/plan.js';

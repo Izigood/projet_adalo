@@ -120,7 +120,7 @@ describe('fields', () => {
     expect([p.destructive, p.reversible]).toEqual([false, true]);
     // Without the same id it is a removal and an addition: that is how a plain rename looks.
     const added = ticket({ ...without('qty'), quantity: { type: 'integer' } }, []);
-    expect(kinds(plan([from], [added]))).toEqual(['addField', 'removeIndex', 'removeField']);
+    expect(kinds(plan([from], [added]))).toEqual(['removeField', 'addField', 'removeIndex']);
   });
 
   it('converts a field whose type changes, and says when it loses information', () => {
@@ -229,11 +229,38 @@ describe('the plan as a whole', () => {
     expect(plan([ticket()], [ticket(), tag]).fingerprint).not.toBe(a.fingerprint);
   });
 
-  it('puts renames and conversions before additions, and removals last', () => {
+  it('removes a field before another takes its key, converts before it adds', () => {
     const to = ticket({ ...without('note'), qty: { type: 'string' }, extra: { type: 'integer' } });
     const order = kinds(plan([ticket()], [to]));
+    expect(order.indexOf('removeField')).toBeLessThan(order.indexOf('changeType'));
     expect(order.indexOf('changeType')).toBeLessThan(order.indexOf('addField'));
-    expect(order.indexOf('addField')).toBeLessThan(order.indexOf('removeField'));
+  });
+
+  it('a field replaced by another of the same key is a removal then an addition', () => {
+    const asText = ticket({ ...without('note'), note: { type: 'integer' } });
+    // Same key, same id: that is a conversion. A different id is built by renaming the key first.
+    expect(kinds(plan([ticket()], [asText]))).toEqual(['changeType']);
+    const from = ticket();
+    const swapped = {
+      ...from,
+      fields: [
+        ...from.fields.filter((f) => f.key !== 'note'),
+        { ...from.fields.find((f) => f.key === 'note'), id: from.id } as never,
+      ],
+    } as Entity;
+    expect(kinds(plan([from], [swapped]))).toEqual(['removeField', 'addField']);
+  });
+
+  it('refuses a chain or a swap of renames, which cannot be applied one after the other', () => {
+    const from = ticket();
+    const swapped = {
+      ...from,
+      fields: from.fields.map((f) =>
+        f.key === 'qty' ? { ...f, key: 'note' } : f.key === 'note' ? { ...f, key: 'qty' } : f,
+      ),
+      indexes: [],
+    } as Entity;
+    expect(problems([from], [swapped]).join()).toContain('a chain or a swap of renames');
   });
 
   it('passes on a target schema that cannot be stored', () => {

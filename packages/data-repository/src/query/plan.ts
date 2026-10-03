@@ -74,16 +74,28 @@ export function planQuery(query: ResolvedQuery): Planned {
       const lower = here.find((condition) => condition.op === 'gt' || condition.op === 'gte');
       const upper = here.find((condition) => condition.op === 'lt' || condition.op === 'lte');
       if (lower !== undefined || upper !== undefined) {
+        const includeLower = lower === undefined || lower.op === 'gte';
+        const includeUpper = upper === undefined || upper.op === 'lte';
+        const low = lower?.keys?.[0];
+        const high = upper?.keys?.[0];
+        // A range that holds nothing (`> a` and `< a`) cannot be given to IndexedDB, which refuses
+        // an open interval on one value: it is an index lookup of no key at all.
+        const empty =
+          low !== undefined &&
+          high !== undefined &&
+          (low > high || (low === high && !(includeLower && includeUpper)));
         candidates.push({
           score: lower !== undefined && upper !== undefined ? 40 : 30,
-          access: {
-            kind: 'range',
-            index,
-            lower: lower?.keys?.[0] ?? Dexie.minKey,
-            upper: upper?.keys?.[0] ?? Dexie.maxKey,
-            includeLower: lower === undefined || lower.op === 'gte',
-            includeUpper: upper === undefined || upper.op === 'lte',
-          },
+          access: empty
+            ? { kind: 'in', index, keys: [] }
+            : {
+                kind: 'range',
+                index,
+                lower: low ?? Dexie.minKey,
+                upper: high ?? Dexie.maxKey,
+                includeLower,
+                includeUpper,
+              },
           consumed: [lower, upper].filter((c): c is ResolvedCondition => c !== undefined),
         });
       }

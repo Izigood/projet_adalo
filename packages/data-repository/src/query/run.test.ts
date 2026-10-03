@@ -111,6 +111,29 @@ describe('the way into the rows: an index when one serves the filter (EF-BND-03)
     expect(found.examined).toBe(COUNT);
   });
 
+  it('a range that holds nothing gives an empty page, not an error; one value on both bounds gives that value', async () => {
+    const between = (lo: 'gt' | 'gte', hi: 'lt' | 'lte', a: number, b: number) =>
+      run(where(cond('qty', lo, a), cond('qty', hi, b)));
+    for (const [lo, hi, a, b] of [
+      ['gt', 'lt', 5, 5],
+      ['gte', 'lt', 5, 5],
+      ['gt', 'lte', 5, 5],
+      ['gt', 'lt', 9, 3],
+      ['gte', 'lte', 9, 3],
+    ] as const) {
+      const found = await between(lo, hi, a, b);
+      expect(found.page.items, `${lo} ${a} ${hi} ${b}`).toEqual([]);
+      expect(found.examined).toBe(0);
+    }
+    const exact = await between('gte', 'lte', 5, 5);
+    expect(exact.page.items.map((row) => row['qty'])).toEqual([5]);
+    // Same on a text index and a decimal one.
+    const text = await run(where(cond('category', 'gt', 'a'), cond('category', 'lt', 'a')));
+    expect(text.page.items).toEqual([]);
+    const decimal = await run(where(cond('price', 'gt', '5.00'), cond('price', 'lt', '5.00')));
+    expect(decimal.page.items).toEqual([]);
+  });
+
   it('a list, a range and a prefix go through the index too', async () => {
     const list = await run(where(cond('qty', 'in', [1, 2, 3])));
     expect(list.plan).toMatchObject({ access: 'in', index: 'qty' });
@@ -479,7 +502,22 @@ describe('against a brute-force oracle (property)', () => {
           else expect([...ids].sort()).toEqual(matching.map((row) => row.id).sort());
         },
       ),
-      { numRuns: 120 },
+      {
+        numRuns: 120,
+        // Found by a run of thousands: an empty range (`< a` and `> a`) made IndexedDB refuse the
+        // interval and the query fail instead of giving an empty page.
+        examples: [
+          [
+            [
+              { field: 'category', op: 'lt', value: 'a' },
+              { field: 'category', op: 'gt', value: 'a' },
+            ],
+            [],
+            3,
+            undefined,
+          ],
+        ],
+      },
     );
   }, 120_000);
 });

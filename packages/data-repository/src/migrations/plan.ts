@@ -86,18 +86,21 @@ const blocked = (problems: readonly string[]): Result<never, DomainError> =>
     }),
   );
 
-/** Renames come first, then what rewrites values, then what removes: a stable order for the same plan. */
+/**
+ * A stable order for the same plan. A field is removed before another takes its key, and renamed
+ * after that; values are converted, then added, then made required.
+ */
 const RANK: Readonly<Record<MigrationOp['kind'], number>> = {
   addEntity: 0,
   addRelation: 1,
-  renameField: 2,
-  changeType: 3,
-  addField: 4,
-  makeRequired: 5,
-  removeIndex: 6,
-  addIndex: 7,
-  alterRelation: 8,
-  removeField: 9,
+  removeField: 2,
+  renameField: 3,
+  changeType: 4,
+  addField: 5,
+  makeRequired: 6,
+  removeIndex: 7,
+  addIndex: 8,
+  alterRelation: 9,
   removeRelation: 10,
   removeEntity: 11,
 };
@@ -151,6 +154,13 @@ function fieldSteps(
       continue;
     }
     if (previous.key !== field.key) {
+      // Another field that stays used to have this key: a chain or a swap of renames cannot be
+      // applied one after the other.
+      if (before.some((other) => other.key === field.key && current.has(other.id))) {
+        problems.push(
+          `${named(entity, previous.key)}: cannot be renamed to ${field.key}, which was the key of another field that stays (a chain or a swap of renames)`,
+        );
+      }
       steps.push(
         step(
           { kind: 'renameField', entity, from: previous.key, to: field.key },
