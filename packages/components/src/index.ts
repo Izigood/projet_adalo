@@ -3,7 +3,9 @@ import type { ComponentDefinition, ComponentRegistry } from '@acs/component-sdk'
 import { defineElements } from './base/define.js';
 import type { BaseComponent } from './base/define.js';
 import fr from './locales/fr.json';
+import { actionActionMenu } from './action/action-menu.js';
 import { actionButton } from './action/button.js';
+import { actionConfirmation } from './action/confirmation.js';
 import { actionNotification } from './action/notification.js';
 import { infoAlert } from './info/alert.js';
 import { infoBadge } from './info/badge.js';
@@ -49,6 +51,8 @@ export const BASE_COMPONENTS: readonly BaseComponent[] = [
   infoIndicator,
   infoProgress,
   actionButton,
+  actionActionMenu,
+  actionConfirmation,
   actionNotification,
 ];
 

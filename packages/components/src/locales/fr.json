@@ -19,10 +19,14 @@
   "component.info.indicator": "Indicateur",
   "component.info.progress": "Progression",
   "component.action.button": "Bouton",
+  "component.action.actionMenu": "Menu d'actions",
+  "component.action.confirmation": "Confirmation",
   "component.action.notification": "Notification",
   "text.alert.info": "Information :",
   "text.alert.success": "Succès :",
   "text.alert.warning": "Attention :",
   "text.alert.danger": "Erreur :",
+  "text.confirmation.confirm": "Confirmer",
+  "text.confirmation.cancel": "Annuler",
   "text.notification.dismiss": "Fermer"
 }
