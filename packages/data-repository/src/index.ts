@@ -23,7 +23,10 @@ export type {
   DerivedKey,
   EntityLayout,
   FieldInfo,
+  ForeignKeyInfo,
   IndexInfo,
+  OnDelete,
+  RelationLayout,
   StoreSpec,
 } from './storage/layout.js';
 export {
@@ -40,6 +43,10 @@ export type {
 } from './storage/database.js';
 export { constraintError, normaliseRecord } from './repository/constraints.js';
 export type { Violation } from './repository/constraints.js';
+export { referenceLookups, uniqueLookups } from './repository/lookups.js';
+export type { Lookup } from './repository/lookups.js';
+export { blockedError } from './repository/relations.js';
+export type { Dependent, RelationLinks } from './repository/relations.js';
 export { createRecordAccess, writeError } from './repository/record-access.js';
 export type {
   AccessOptions,

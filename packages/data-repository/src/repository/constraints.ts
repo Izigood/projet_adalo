@@ -6,7 +6,7 @@ import type { ValueRule } from '../values/field-value.js';
 
 export type Violation = {
   readonly field: string;
-  readonly rule: ValueRule | 'required' | 'unknown' | 'unique';
+  readonly rule: ValueRule | 'required' | 'unknown' | 'unique' | 'reference';
   readonly message: string;
 };
 

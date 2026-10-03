@@ -3,6 +3,8 @@ import type { DomainError, JsonValue, Result } from '@acs/domain';
 import type { Entity, Field, FieldType, Relation } from '@acs/project-schema';
 import { decimalSortKey } from '../values/decimal.js';
 import type { DecimalFormat } from '../values/decimal.js';
+import { junctionStoreName, pointedEntity, resolveRelations } from './relation-layout.js';
+import type { ForeignKeyInfo, OnDelete, RelationLayout } from './relation-layout.js';
 
 /** The stores every data base has besides the entities (dossier 6.4); `_outbox` stays empty at the MVP. */
 const FIXED_STORES: readonly StoreSpec[] = [
@@ -53,13 +55,16 @@ export type EntityLayout = {
 
 export type DataLayout = {
   readonly entities: ReadonlyMap<string, EntityLayout>;
+  readonly relations: readonly RelationLayout[];
+  readonly foreignKeys: readonly ForeignKeyInfo[];
   readonly stores: readonly StoreSpec[];
   /** Same text for the same stores, whatever the order they were declared in. */
   readonly signature: string;
 };
 
+export { junctionStoreName };
+export type { ForeignKeyInfo, OnDelete, RelationLayout };
 export const entityStoreName = (entityKey: string): string => `e_${entityKey}`;
-export const junctionStoreName = (relationId: string): string => `j_${relationId}`;
 export const derivedKeyName = (fieldKey: string): string => `_k_${fieldKey}`;
 
 /** Fields whose value is a boolean or a decimal are indexed through a key derived from them. */
@@ -84,7 +89,11 @@ function fieldInfo(field: Field): FieldInfo {
   };
 }
 
-function entityLayout(entity: Entity, problems: string[]): EntityLayout {
+function entityLayout(
+  entity: Entity,
+  problems: string[],
+  forcedUnique: ReadonlySet<string> = new Set(),
+): EntityLayout {
   const fields = new Map<string, FieldInfo>();
   for (const field of entity.fields) {
     if (field.key === 'id') problems.push(`${entity.key}.id: id is the key of every record`);
@@ -121,9 +130,11 @@ function entityLayout(entity: Entity, problems: string[]): EntityLayout {
     });
   };
 
+  // The fields that point at another record are indexed: deleting that record looks for them.
   for (const info of fields.values()) {
-    if (info.unique) add([info.key], true, `${entity.key}.${info.key}`);
-    if (info.type === 'reference') add([info.key], false, `${entity.key}.${info.key}`);
+    const where = `${entity.key}.${info.key}`;
+    if (info.unique || forcedUnique.has(info.key)) add([info.key], true, where);
+    if (pointedEntity(info.definition) !== undefined) add([info.key], false, where);
   }
   for (const index of entity.indexes ?? []) {
     add(index.fields, index.unique === true, `${entity.key} index ${index.name}`);
@@ -158,23 +169,21 @@ export function buildLayout(
   relations: readonly Relation[],
 ): Result<DataLayout, DomainError> {
   const problems: string[] = [];
+  const resolved = resolveRelations(entities, relations, problems);
   const layouts = new Map<string, EntityLayout>();
   for (const entity of entities) {
     if (layouts.has(entity.key)) problems.push(`${entity.key}: declared twice`);
-    layouts.set(entity.key, entityLayout(entity, problems));
+    layouts.set(entity.key, entityLayout(entity, problems, resolved.uniqueFields.get(entity.key)));
   }
 
-  const ids = new Set(entities.map((entity) => entity.id));
   const stores: StoreSpec[] = [];
   for (const layout of layouts.values()) {
     stores.push({ name: layout.storeName, schema: schemaOfEntity(layout) });
   }
-  for (const relation of relations) {
-    if (!ids.has(relation.source) || !ids.has(relation.target)) {
-      problems.push(`relation ${relation.id}: links an entity that does not exist`);
-    } else if (relation.cardinality === 'N-N') {
+  for (const relation of resolved.relations) {
+    if (relation.junctionStore !== undefined) {
       stores.push({
-        name: junctionStoreName(relation.id),
+        name: relation.junctionStore,
         schema: 'id, sourceId, targetId, &[sourceId+targetId]',
       });
     }
@@ -189,6 +198,8 @@ export function buildLayout(
   const sorted = [...stores].sort((a, b) => a.name.localeCompare(b.name));
   return ok({
     entities: layouts,
+    relations: resolved.relations,
+    foreignKeys: resolved.foreignKeys,
     stores: sorted,
     signature: JSON.stringify(sorted.map((store) => [store.name, store.schema])),
   });
