@@ -1,6 +1,6 @@
 import { migratePackage, openPackage } from '@acs/project-schema';
 import fc from 'fast-check';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { consistencyProblems, stableId } from './index.js';
 
 /**
@@ -112,12 +112,18 @@ const freeze = <T>(value: T): T => {
 };
 
 /**
- * Each property runs in batches of 100 documents, one test per batch. A single 1 000-document test
- * kept the worker busy for tens of seconds without yielding, so under load Vitest could not reach
- * it any more and aborted the run ("Timeout calling onTaskUpdate", 60 s). Batches give the worker
- * a turn of the event loop between them; the total number of documents is unchanged.
+ * Each property runs in batches of 100 documents, one test per batch. The tests are CPU-bound and
+ * synchronous: the worker only answers Vitest's messages when it gives the event loop a turn. If
+ * the tests run back to back for more than 60 s (this file takes 20 to 70 s depending on the load
+ * of the machine) the timer of the pending `onTaskUpdate` call fires before the reply is read, and
+ * Vitest aborts the run ("Timeout calling onTaskUpdate"). Splitting into batches alone does not
+ * help (that was the first attempt, which was wrong): `afterEach` below yields after every batch.
+ * The total number of documents is unchanged.
  */
 const BATCH = 100;
+
+afterEach(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
+
 const batches = (count: number) => Array.from({ length: count / BATCH }, (_, i) => i + 1);
 const PROPERTY_TIMEOUT = 60_000;
 
