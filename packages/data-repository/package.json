@@ -13,11 +13,13 @@
   "dependencies": {
     "@acs/domain": "workspace:*",
     "@acs/project-schema": "workspace:*",
-    "big.js": "^7.0.1"
+    "big.js": "^7.0.1",
+    "dexie": "^4.4.6"
   },
   "devDependencies": {
     "@acs/testing": "workspace:*",
     "@types/big.js": "^7.0.0",
+    "fake-indexeddb": "^6.2.5",
     "fast-check": "^4.10.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

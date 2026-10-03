@@ -31,6 +31,17 @@ Le § 7.1 donne `Repository` et `QuerySpec`, mais laisse plusieurs points ouvert
 - **`json`** : données simples seulement, 32 niveaux et 10 000 valeurs au plus, clé `__proto__` refusée. Le `schema` optionnel du champ est « recommandé » (§ 6.3) et n'est pas appliqué.
 - **Longueurs** : comptées en points de code, comme JSON Schema, pas en unités UTF-16.
 
+**Stockage** (étape 3)
+
+- **Plan de stores** (`buildLayout`) : `e_<entité>` (clé `id`, index `_updatedAt`, index des champs `unique`, des champs `reference` et des index déclarés), `j_<id de la relation>` pour une relation N-N (`id, sourceId, targetId` et unicité du couple), et les stores fixes `_meta`, `_files`, `_wfRuns`, `_wfLogs`, `_outbox`. Un schéma qu'on ne peut pas stocker (index sur un champ absent ou `json`, choix multiple en index composé ou unique, champ nommé `id`, doublons, relation vers une entité inconnue) est un `MANIFEST_INVALID` qui liste tous les problèmes.
+- **Clés dérivées** : IndexedDB n'indexe ni les booléens ni un décimal à l'ordre numérique. Un décimal est indexé par `_k_<champ>` (la clé de tri) et un booléen par `_k_<champ>` valant 0 ou 1. Le Repository les écrit avec l'enregistrement (`deriveKeys`). Une valeur absente ou `null` n'a pas de clé, donc n'est pas dans l'index. Un choix multiple est indexé par éléments (`*champ`), seul.
+- **Version et signature** : la base est créée en version 1 et `_meta` garde une ligne `schema` avec la signature du plan (le texte des stores, trié). Ouvrir une base existante dont la signature diffère est un `MIGRATION_BLOCKED` : la base n'est pas modifiée, et seul le moteur de migration (étape 7) la fait évoluer. Ce choix évite qu'un simple changement d'index du manifeste transforme des données sans plan ni sauvegarde (RG-09).
+- **Environnements** : `acs-data-{clé}-{test|prod}`, la clé de projet étant contrôlée par `PROJECT_KEY_PATTERN` pour qu'elle ne puisse pas fabriquer un autre nom. Les deux bases sont indépendantes.
+- **Purge** (SEC-09) : `purgeEnvironment` supprime la base puis vérifie qu'elle est absente (elle ne s'ouvre plus comme une base existante). Un navigateur qui répond « supprimé » en gardant les données est détecté (`STORAGE_UNAVAILABLE`). Supprimer une base inexistante n'est pas une erreur.
+- **Erreurs** : un disque plein est `STORAGE_QUOTA`, tout autre échec ou l'absence d'IndexedDB est `STORAGE_UNAVAILABLE`.
+- **Persistance** (REC-01) : `requestPersistence` demande `storage.persist()` (sans le redemander si `persisted()` répond oui) et renvoie `persistent`, `best-effort` ou `unsupported`, sans jamais lever d'exception. L'indicateur visible (RG-15) relève de l'interface, hors du lot.
+- **Dépendances** : `dexie` 4.4.6 (Apache-2.0) ; `fake-indexeddb` 6.2.5 (Apache-2.0, en test), dont la licence est Apache-2.0 et non MIT.
+
 ## Conséquences
 
 - Le lot 8 branchera `where` sans changer le port.
