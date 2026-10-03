@@ -78,7 +78,7 @@ export class AcsStructureTabs extends AcsElement<Props> {
   }
 
   protected override updated(): void {
-    this.#syncPanels();
+    this.#assignSlots();
   }
 
   #select(index: number, focus = false): void {
@@ -107,14 +107,14 @@ export class AcsStructureTabs extends AcsElement<Props> {
     this.#select(target, true);
   }
 
-  /** The children are the panels: mark them and show the selected one only. */
-  #syncPanels(): void {
-    const tabs = this.props?.tabs ?? [];
-    [...this.children].forEach((panel, index) => {
-      panel.setAttribute('role', 'tabpanel');
-      panel.setAttribute('aria-label', tabs[index] ?? '');
-      panel.toggleAttribute('hidden', index !== this.selectedIndex);
-    });
+  /**
+   * Each child goes in the slot of the panel at its position. The panel itself (role, name, focus,
+   * visibility) belongs to this component's shadow DOM, so a child keeps its own role and
+   * attributes: a stack or a grid used as a panel is not turned into something else, and does not
+   * take the role back from the panel on its next update.
+   */
+  #assignSlots(): void {
+    [...this.children].forEach((content, index) => content.setAttribute('slot', `panel-${index}`));
   }
 
   protected override render() {
@@ -133,6 +133,7 @@ export class AcsStructureTabs extends AcsElement<Props> {
               role="tab"
               id=${`tab-${index}`}
               aria-selected=${index === this.selectedIndex ? 'true' : 'false'}
+              aria-controls=${`panel-${index}`}
               tabindex=${index === this.selectedIndex ? '0' : '-1'}
               @click=${() => this.#select(index)}
             >
@@ -140,7 +141,23 @@ export class AcsStructureTabs extends AcsElement<Props> {
             </button>`,
         )}
       </div>
-      <div class="panels"><slot @slotchange=${() => this.#syncPanels()}></slot></div>
+      <div class="panels">
+        ${tabs.map(
+          (_title, index) =>
+            html`<div
+              class="panel"
+              role="tabpanel"
+              id=${`panel-${index}`}
+              aria-labelledby=${`tab-${index}`}
+              tabindex="0"
+              ?hidden=${index !== this.selectedIndex}
+            >
+              <slot name=${`panel-${index}`}></slot>
+            </div>`,
+        )}
+        <!-- Children that have no slot yet (added later) land here, then are assigned one. -->
+        <slot hidden @slotchange=${() => this.#assignSlots()}></slot>
+      </div>
     `;
   }
 }

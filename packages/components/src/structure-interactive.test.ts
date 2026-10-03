@@ -10,6 +10,12 @@ const tabButtons = (tabs: AcsStructureTabs) => [
   ...(tabs.shadowRoot?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []),
 ];
 
+const tabPanels = (tabs: AcsStructureTabs) => [
+  ...(tabs.shadowRoot?.querySelectorAll<HTMLElement>('[role="tabpanel"]') ?? []),
+];
+const shownPanels = (tabs: AcsStructureTabs) =>
+  tabPanels(tabs).map((panel) => !panel.hasAttribute('hidden'));
+
 const press = async (tabs: AcsStructureTabs, key: string) => {
   tabs.shadowRoot
     ?.querySelector('[role="tablist"]')
@@ -39,14 +45,57 @@ describe('structure.tabs', () => {
       { ...props, selected: 1 },
       panels(),
     )) as AcsStructureTabs;
-    const shown = [...tabs.children].map((panel) => !panel.hasAttribute('hidden'));
-    expect(shown).toEqual([false, true, false]);
-    expect([...tabs.children].map((panel) => panel.getAttribute('role'))).toEqual([
+    expect(shownPanels(tabs)).toEqual([false, true, false]);
+    expect(tabPanels(tabs).map((panel) => panel.getAttribute('role'))).toEqual([
       'tabpanel',
       'tabpanel',
       'tabpanel',
     ]);
-    expect(tabs.children[1]?.getAttribute('aria-label')).toBe('Détail');
+  });
+
+  it('relates each tab to its panel both ways, and lets the panel take focus', async () => {
+    const tabs = (await mount('acs-structure-tabs', props, panels())) as AcsStructureTabs;
+    tabButtons(tabs).forEach((button, index) => {
+      expect(button.getAttribute('aria-controls')).toBe(`panel-${index}`);
+      const panel = tabPanels(tabs)[index];
+      expect(panel?.id).toBe(`panel-${index}`);
+      expect(panel?.getAttribute('aria-labelledby')).toBe(button.id);
+      expect(panel?.getAttribute('tabindex')).toBe('0');
+    });
+  });
+
+  it('puts each child in the panel at its position, without touching the child itself', async () => {
+    const children = panels();
+    const tabs = (await mount('acs-structure-tabs', props, children)) as AcsStructureTabs;
+    expect(children.map((child) => child.getAttribute('slot'))).toEqual([
+      'panel-0',
+      'panel-1',
+      'panel-2',
+    ]);
+    for (const child of children) {
+      expect(child.hasAttribute('role')).toBe(false);
+      expect(child.hasAttribute('aria-label')).toBe(false);
+      expect(child.hasAttribute('hidden')).toBe(false);
+    }
+    expect(tabs.shadowRoot?.querySelectorAll('slot[name^="panel-"]')).toHaveLength(3);
+  });
+
+  it('keeps the role of a component used as a panel, and the role of the panel, after an update', async () => {
+    // Regression: the panel role used to be written on the child, and a stack, a grid or a page
+    // wrote role="none" back on itself at its next update, which lost the tab panel.
+    const stack = document.createElement('acs-structure-stack') as HTMLElement & {
+      props?: object;
+      updateComplete: Promise<unknown>;
+    };
+    stack.props = { gap: 'md' };
+    const tabs = (await mount('acs-structure-tabs', props, [stack])) as AcsStructureTabs;
+    await stack.updateComplete;
+    stack.props = { gap: 'lg' };
+    await stack.updateComplete;
+    await tabs.updateComplete;
+    expect(stack.getAttribute('role')).toBe('none');
+    expect(tabPanels(tabs)[0]?.getAttribute('role')).toBe('tabpanel');
+    expect(stack.getAttribute('slot')).toBe('panel-0');
   });
 
   it('keeps only the selected tab in the tab order (roving tabindex)', async () => {
@@ -74,11 +123,7 @@ describe('structure.tabs', () => {
     tabButtons(tabs)[2]?.click();
     await tabs.updateComplete;
     expect(events).toEqual([{ index: 2 }]);
-    expect([...tabs.children].map((panel) => !panel.hasAttribute('hidden'))).toEqual([
-      false,
-      false,
-      true,
-    ]);
+    expect(shownPanels(tabs)).toEqual([false, false, true]);
   });
 
   it('does not announce a click on the tab that is already selected', async () => {
@@ -166,7 +211,33 @@ describe('structure.accordion', () => {
       'panel-1',
       'panel-2',
     ]);
-    expect(accordion.shadowRoot?.querySelectorAll('slot')).toHaveLength(3);
+    expect(accordion.shadowRoot?.querySelectorAll('slot[name^="panel-"]')).toHaveLength(3);
+  });
+
+  it('relates each header to its panel both ways, and names a panel as a region', async () => {
+    const accordion = (await mount(
+      'acs-structure-accordion',
+      props,
+      contents(),
+    )) as AcsStructureAccordion;
+    const panels = [...(accordion.shadowRoot?.querySelectorAll<HTMLElement>('.panel') ?? [])];
+    headers(accordion).forEach((header, index) => {
+      expect(header.getAttribute('aria-controls')).toBe(`panel-${index}`);
+      expect(panels[index]?.id).toBe(`panel-${index}`);
+      expect(panels[index]?.getAttribute('role')).toBe('region');
+      expect(panels[index]?.getAttribute('aria-labelledby')).toBe(header.id);
+    });
+  });
+
+  it('does not make a landmark of every panel when there are many sections', async () => {
+    const many = {
+      ...props,
+      items: Array.from({ length: 7 }, (_, index) => `Section ${index}`),
+    };
+    const accordion = (await mount('acs-structure-accordion', many)) as AcsStructureAccordion;
+    const panels = [...(accordion.shadowRoot?.querySelectorAll<HTMLElement>('.panel') ?? [])];
+    expect(panels).toHaveLength(7);
+    expect(panels.every((panel) => !panel.hasAttribute('role'))).toBe(true);
   });
 
   it('starts with the sections it is told to open', async () => {

@@ -1,7 +1,7 @@
 import type { ComponentDefinition } from '@acs/component-sdk';
 import { Type } from '@sinclair/typebox';
 import type { Static } from '@sinclair/typebox';
-import { css, html } from 'lit';
+import { css, html, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { AcsElement } from '../base/acs-element.js';
 import type { BaseComponent } from '../base/define.js';
@@ -25,6 +25,12 @@ const propsSchema = Type.Object(
   { additionalProperties: false },
 );
 type Props = Static<typeof propsSchema>;
+
+/**
+ * Up to this many sections each panel is a named region; beyond it they are not, because a page full
+ * of landmarks is harder to navigate than one without (ARIA Authoring Practices).
+ */
+const MAX_REGIONS = 6;
 
 /**
  * Sections that open and close. The children are the contents, in the order of `items`; each one
@@ -109,14 +115,25 @@ export class AcsStructureAccordion extends AcsElement<Props> {
               class="header"
               id=${`header-${index}`}
               aria-expanded=${isOpen ? 'true' : 'false'}
+              aria-controls=${`panel-${index}`}
               @click=${() => this.#toggle(index)}
             >
               ${title}
             </button>
           </h3>
-          <div class="panel" ?hidden=${!isOpen}><slot name=${`panel-${index}`}></slot></div>
+          <div
+            class="panel"
+            id=${`panel-${index}`}
+            role=${items.length <= MAX_REGIONS ? 'region' : nothing}
+            aria-labelledby=${items.length <= MAX_REGIONS ? `header-${index}` : nothing}
+            ?hidden=${!isOpen}
+          >
+            <slot name=${`panel-${index}`}></slot>
+          </div>
         </div>`;
       })}
+      <!-- Children that have no slot yet (added later) land here, then are assigned one. -->
+      <slot hidden @slotchange=${() => this.#assignSlots()}></slot>
     </div>`;
   }
 }
