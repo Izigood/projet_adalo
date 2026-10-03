@@ -1,6 +1,9 @@
 /**
  * Business error codes: catalogue of dossier section 7.7, plus the two manifest codes of 6.5 and
- * COMPONENT_INVALID (a component definition refused at registration, ADR-0034).
+ * COMPONENT_INVALID (a component definition refused at registration, ADR-0034), and the three
+ * codes of the local data layer (ADR-0036): QUERY_INVALID (a query the engine cannot run),
+ * MIGRATION_BLOCKED (a data migration that needs a decision first) and STORAGE_UNAVAILABLE (no
+ * usable IndexedDB).
  */
 export const DOMAIN_ERROR_CODES = [
   'CONSTRAINT_VIOLATION',
@@ -13,6 +16,9 @@ export const DOMAIN_ERROR_CODES = [
   'MANIFEST_INVALID',
   'MANIFEST_UNSUPPORTED',
   'COMPONENT_INVALID',
+  'QUERY_INVALID',
+  'MIGRATION_BLOCKED',
+  'STORAGE_UNAVAILABLE',
 ] as const;
 
 export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[number];

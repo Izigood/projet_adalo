@@ -22,7 +22,7 @@ describe('domainError', () => {
     expect(a.correlationId).not.toBe(b.correlationId);
   });
 
-  it('catalogues the 7 codes of section 7.7, the 2 manifest codes of section 6.5 and COMPONENT_INVALID', () => {
+  it('catalogues the codes of section 7.7 and 6.5, COMPONENT_INVALID and the 3 data-layer codes', () => {
     expect([...DOMAIN_ERROR_CODES].sort()).toEqual(
       [
         'COMPONENT_INVALID',
@@ -31,9 +31,12 @@ describe('domainError', () => {
         'EXPRESSION_INVALID',
         'MANIFEST_INVALID',
         'MANIFEST_UNSUPPORTED',
+        'MIGRATION_BLOCKED',
         'PKG_INTEGRITY',
+        'QUERY_INVALID',
         'REFERENCE_BLOCKED',
         'STORAGE_QUOTA',
+        'STORAGE_UNAVAILABLE',
         'VERSION_CONFLICT',
       ].sort(),
     );
