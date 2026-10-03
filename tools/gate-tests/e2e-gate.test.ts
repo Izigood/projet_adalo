@@ -175,7 +175,7 @@ describe('e2e gate (REC-10): Runtime responsive', () => {
       'Runtime responsive',
       await serve(runtimePage(responsiveTitle, '')),
     );
-    expect(results).toHaveLength(14);
+    expect(results).toHaveLength(17);
     expect(results.filter((result) => result.ok).map((result) => result.title)).toEqual([]);
   }, 120_000);
 

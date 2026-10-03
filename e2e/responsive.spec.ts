@@ -58,7 +58,7 @@ test.describe('Runtime responsive', () => {
       await expect(page).toHaveScreenshot(`responsive-${width}.png`, {
         fullPage: true,
         animations: 'disabled',
-        maxDiffPixelRatio: 0.02,
+        maxDiffPixelRatio: 0.001,
       });
     });
   }
@@ -106,21 +106,39 @@ test.describe('Runtime responsive', () => {
     expect(heights[1] ?? 0).toBeGreaterThan((heights[0] ?? 0) * 1.8);
   });
 
-  for (const { width } of [WIDTHS[0], WIDTHS[2]]) {
+  /** What axe-core reports as serious or critical, as `rule: selector | selector`. */
+  const blockingViolations = async (page: Page) => {
+    const { violations } = await new AxeBuilder({ page }).analyze();
+    return violations
+      .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+      .map(
+        (violation) =>
+          `${violation.id}: ${violation.nodes.map((n) => n.target.join(' ')).join(' | ')}`,
+      );
+  };
+
+  for (const { width } of WIDTHS) {
     test(`has no serious or critical accessibility violation at ${width} px (axe-core)`, async ({
       page,
     }) => {
       await open(page, width);
-      const { violations } = await new AxeBuilder({ page }).analyze();
-      const blocking = violations.filter(
-        (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+      expect(await blockingViolations(page)).toEqual([]);
+    });
+  }
+
+  // The dark theme has its own colours, so its contrast is checked on the page, not only in the
+  // token test: a pair that is fine on the white page can fail on the dark one.
+  for (const { width } of [WIDTHS[0], WIDTHS[2]]) {
+    test(`has no serious or critical accessibility violation at ${width} px in the dark theme (axe-core)`, async ({
+      page,
+    }) => {
+      await page.emulateMedia({ colorScheme: 'dark' });
+      await open(page, width);
+      await expect(page.locator('acs-runtime-root')).toHaveCSS(
+        'background-color',
+        'rgb(18, 21, 27)',
       );
-      expect(
-        blocking.map(
-          (violation) =>
-            `${violation.id}: ${violation.nodes.map((n) => n.target.join(' ')).join(' | ')}`,
-        ),
-      ).toEqual([]);
+      expect(await blockingViolations(page)).toEqual([]);
     });
   }
 });

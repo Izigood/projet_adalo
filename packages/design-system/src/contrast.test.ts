@@ -28,6 +28,15 @@ const TEXT_PAIRS: readonly Pair[] = [
   ['color.on-danger', 'color.danger'],
   ['color.on-success', 'color.success'],
   ['color.on-warning', 'color.warning'],
+  // Used as the colour of text by the components: the value of an indicator, the border-less error
+  // marker of the shell, the links of a menu on its current item.
+  ['color.success', 'color.surface'],
+  ['color.success', 'color.surface-alt'],
+  ['color.warning', 'color.surface'],
+  ['color.warning', 'color.surface-alt'],
+  ['color.danger', 'color.surface'],
+  ['color.danger', 'color.surface-alt'],
+  ['color.primary', 'color.surface-alt'],
 ];
 
 const UI_PAIRS: readonly Pair[] = [
