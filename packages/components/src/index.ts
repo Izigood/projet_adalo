@@ -5,6 +5,9 @@ import type { BaseComponent } from './base/define.js';
 import fr from './locales/fr.json';
 import { infoAlert } from './info/alert.js';
 import { infoBadge } from './info/badge.js';
+import { infoCard } from './info/card.js';
+import { infoIndicator } from './info/indicator.js';
+import { infoProgress } from './info/progress.js';
 import { infoText } from './info/text.js';
 import { infoTitle } from './info/title.js';
 import { navigationBackButton } from './navigation/back-button.js';
@@ -40,6 +43,9 @@ export const BASE_COMPONENTS: readonly BaseComponent[] = [
   infoTitle,
   infoBadge,
   infoAlert,
+  infoCard,
+  infoIndicator,
+  infoProgress,
 ];
 
 export const BASE_DEFINITIONS: readonly ComponentDefinition[] = BASE_COMPONENTS.map(
