@@ -308,8 +308,6 @@ describe('a query that cannot be run is QUERY_INVALID, with the field and the re
     [{ sort: [{ field: 'zzz', dir: 'asc' as const }] }, 'cannot be sorted on'],
     [{ projection: ['zzz'] }, 'item.zzz: the entity has no such field'],
     [{ where: 'qty > 3' }, 'expression engine'],
-    [{ search: { text: 'x', fields: ['name'] } }, 'not available yet'],
-    [{ aggregate: [{ fn: 'count' as const, as: 'n' }] }, 'not available yet'],
   ])('%j', async (spec, message) => {
     expect(await refused(spec as Omit<QuerySpec, 'source'>)).toContain(message);
   });
@@ -437,8 +435,30 @@ describe('against a brute-force oracle (property)', () => {
         fc.array(atoms, { maxLength: 3 }),
         sortKeys,
         fc.integer({ min: 3, max: 17 }),
-        async (filter, sort, size) => {
-          const matching = rows.filter((row) => filter.every((atom) => oracleMatch(row, atom)));
+        fc.option(
+          fc.record({
+            text: fc.constantFrom('item-1', 'M-0 item', 'zz', 'ITEM 2', 'item', '1 a'),
+            fields: fc.constantFrom(['name'], ['name', 'category']),
+          }),
+          { nil: undefined },
+        ),
+        async (filter, sort, size, search) => {
+          const words = (search?.text ?? '')
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((w) => w !== '');
+          const found = (row: Row) =>
+            search === undefined ||
+            words.every((word) =>
+              search.fields.some((field) =>
+                String(row[field] ?? '')
+                  .toLowerCase()
+                  .includes(word),
+              ),
+            );
+          const matching = rows.filter(
+            (row) => filter.every((atom) => oracleMatch(row, atom)) && found(row),
+          );
           const ids: string[] = [];
           let cursor: string | undefined;
           let pages = 0;
@@ -446,6 +466,7 @@ describe('against a brute-force oracle (property)', () => {
             const found = await run({
               ...(filter.length > 0 ? { filter: { and: filter } } : {}),
               ...(sort.length > 0 ? { sort } : {}),
+              ...(search === undefined ? {} : { search }),
               page: { size, ...(cursor === undefined ? {} : { cursor }) },
             });
             expect(found.page.items.length).toBeLessThanOrEqual(size);

@@ -65,3 +65,24 @@ export function matches(
       return typeof actual === 'string' && actual.startsWith(String(value));
   }
 }
+
+/** A text as a search sees it: no accents, no case ("Éléphant" is found by "elephant"). */
+export function foldText(text: string): string {
+  return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
+/** The words of a search and the text fields they are looked for in. */
+export type ResolvedSearch = {
+  readonly tokens: readonly string[];
+  readonly fields: readonly FieldInfo[];
+};
+
+/** Every word must be found, in any of the fields (substring, accents and case ignored). */
+export function matchesSearch(
+  row: Readonly<Record<string, unknown>>,
+  search: ResolvedSearch,
+): boolean {
+  const texts = search.fields.map((info) => row[info.key]).filter((v) => typeof v === 'string');
+  const folded = texts.map((text) => foldText(text as string));
+  return search.tokens.every((token) => folded.some((text) => text.includes(token)));
+}

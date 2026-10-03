@@ -41,8 +41,8 @@ export type {
   OpenEnvironment,
   OpenOptions,
 } from './storage/database.js';
-export { runQuery } from './query/run.js';
-export type { QueryRow, QueryRun } from './query/run.js';
+export { executeQuery, prepareQuery, runQuery } from './query/run.js';
+export type { PreparedQuery, QueryRow, QueryRun } from './query/run.js';
 export type { AccessKind, QueryPlan } from './query/plan.js';
 export { constraintError, normaliseRecord } from './repository/constraints.js';
 export type { Violation } from './repository/constraints.js';
@@ -50,6 +50,11 @@ export { referenceLookups, uniqueLookups } from './repository/lookups.js';
 export type { Lookup } from './repository/lookups.js';
 export { blockedError } from './repository/relations.js';
 export type { Dependent, RelationLinks } from './repository/relations.js';
+export { DataError } from './errors.js';
+export { createDataStore } from './repository/data-store.js';
+export type { LocalDataStore } from './repository/data-store.js';
+export { createChangeBus } from './repository/changes.js';
+export type { ChangeBus } from './repository/changes.js';
 export { createRecordAccess, writeError } from './repository/record-access.js';
 export type {
   AccessOptions,

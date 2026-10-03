@@ -71,6 +71,15 @@ Le § 7.1 donne `Repository` et `QuerySpec`, mais laisse plusieurs points ouvert
 - **Projection** : les champs demandés et `id` ; les clés dérivées ne sortent jamais.
 - **Pas encore** : `search`, `aggregate` (étape 6b, refusés en attendant) et `where` (lot 8, refusé).
 
+**Recherche, agrégats, `observe` et port complet** (étape 6b)
+
+- **Recherche texte** : `search: { text, fields }` cherche chaque mot (1 à 10, 200 caractères au plus) comme sous-chaîne, sans tenir compte de la casse ni des accents (`Éléphant` est trouvé par `elephant`), dans l'un des champs `string` ou `text` indiqués (1 à 10). Il faut **tous** les mots. C'est une vérification ligne à ligne, jamais indexée : le plan la compte dans `residual`. Pas de classement par pertinence.
+- **Agrégats** : `count` (de tous les enregistrements, ou de ceux qui ont une valeur du champ), `sum`, `avg` (champs entier ou décimal), `min`, `max` (tout champ qui a un ordre). Les valeurs absentes sont ignorées. Les décimaux s'additionnent et se moyennent avec big.js à l'échelle du champ (0,10 + 0,20 donne 0,30) ; la somme d'entiers est un nombre, ou ses chiffres si elle ne tient pas dans un entier sûr ; la moyenne d'entiers est un décimal à deux chiffres. Sur aucune ligne : `count` et `sum` valent 0, les autres `null`. Le nom du résultat (`as`) est une clé lisible, unique. Les agrégats portent sur **tout ce qui correspond**, pas sur la page, et accompagnent chaque page ; pour n'avoir que les agrégats, demander une page de 1.
+- **`DataError`** : là où le port ne peut pas renvoyer un `Result` (`query`, `observe`), l'erreur de l'annexe 7.7 est levée dans une `DataError` (champ `error`). Son nom est `AcsDataError`, pas `DataError` : c'est le nom d'une erreur d'IndexedDB que Dexie reconnaît et remplace par la sienne, ce qui faisait perdre sa classe à l'erreur levée dans une transaction (défaut trouvé par un test).
+- **`query` dans une transaction** : la validation (`prepareQuery`) est faite sans rien attendre, puis `executeQuery` fait toujours au moins une requête, pour respecter la règle de l'étape 5. Une requête voit ce que la transaction a déjà écrit.
+- **`observe`** : une requête qui suit les données. Chaque écriture validée dit au bus de changements quels stores elle a touchés (la suppression avec cascade : tous ceux de la cascade ; une transaction : l'ensemble, **après** sa validation, rien si elle est annulée) ; ce qui observe relit la requête si son entité est touchée, et ne rend pas deux fois une page identique. Une erreur de relecture va à `onError` (paramètre ajouté à `Observable.subscribe` dans le port) et l'abonnement continue ; une requête invalide est refusée à l'appel d'`observe`. **Limite** : le bus est interne à la base ouverte, une écriture faite dans un autre onglet n'est pas vue.
+- **`createDataStore`** : le `DataStore` du port, avec un `Repository` complet par entité (`get`, `query`, `save`, `delete`, `transaction`, `observe`), plus `links(relationId)` pour les relations N-N.
+
 ## Conséquences
 
 - Le lot 8 branchera `where` sans changer le port.

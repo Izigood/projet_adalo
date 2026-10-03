@@ -5,31 +5,38 @@ import type {
   EntityKey,
   EntityOperations,
   Id,
+  Page,
+  QuerySpec,
   RecordEnvelope,
   Result,
+  UnitOfWork,
 } from '@acs/domain';
+import { DataError } from '../errors.js';
+import { executeQuery, prepareQuery } from '../query/run.js';
 import type { OpenEnvironment } from '../storage/database.js';
 import { storageError } from '../storage/database.js';
 import { deriveKeys } from '../storage/layout.js';
 import type { EntityLayout } from '../storage/layout.js';
+import { createChangeBus } from './changes.js';
+import type { ChangeBus } from './changes.js';
 import { constraintError, normaliseRecord } from './constraints.js';
 import type { Violation } from './constraints.js';
 import { referenceLookups, uniqueLookups } from './lookups.js';
 import { applyDeletion, blockedError, planDeletion, relationLinks } from './relations.js';
 import type { RelationLinks } from './relations.js';
 
-/** Reads and writes of one entity; queries are added on top of these (step 6 of lot 4). */
-export type RecordOperations<T extends RecordEnvelope> = Omit<EntityOperations<T>, 'query'>;
+/** Reads, queries and writes of one entity. */
+export type RecordOperations<T extends RecordEnvelope> = EntityOperations<T>;
 
-export type RecordUnitOfWork = {
-  of<T extends RecordEnvelope>(entity: EntityKey): RecordOperations<T>;
-};
+export type RecordUnitOfWork = UnitOfWork;
 
 export type RecordAccess = {
   entity<T extends RecordEnvelope>(entity: EntityKey): RecordOperations<T>;
   /** The links of an N-N relation, by the id of the relation in the manifest. */
   links(relationId: string): RelationLinks;
   transaction<R>(work: (uow: RecordUnitOfWork) => Promise<R>): Promise<R>;
+  /** Told after each committed write which stores it touched (what `observe` listens to). */
+  readonly changes: ChangeBus;
 };
 
 export type AccessOptions = {
@@ -94,7 +101,17 @@ export function createRecordAccess(
   const inTransaction = <R>(work: () => Promise<R>): Promise<R> =>
     environment.db.transaction('rw', dataTables, work);
 
-  function entity<T extends RecordEnvelope>(entityKey: EntityKey): RecordOperations<T> {
+  const changes = createChangeBus();
+  /** A write reports the stores it touched: into the set of its transaction, or to the listeners when it is alone. */
+  const publish = (sink: Set<string> | undefined, stores: Iterable<string>): void => {
+    if (sink === undefined) changes.notify(new Set(stores));
+    else for (const store of stores) sink.add(store);
+  };
+
+  function entity<T extends RecordEnvelope>(
+    entityKey: EntityKey,
+    sink?: Set<string>,
+  ): RecordOperations<T> {
     const known = environment.layout.entities.get(entityKey);
     if (known === undefined) throw new RangeError(`the project has no entity ${entityKey}`);
     const layout: EntityLayout = known;
@@ -114,7 +131,7 @@ export function createRecordAccess(
       }
       const normalised = normaliseRecord(layout as EntityLayout, fields);
       try {
-        return await inTransaction(async () => {
+        const saved = await inTransaction(async () => {
           const id = (given ?? newId()) as string;
           // Always read first, even for a new id: an IndexedDB transaction that has placed no
           // request yet closes as soon as the code waits for anything else (here, the checks).
@@ -167,14 +184,17 @@ export function createRecordAccess(
           await table.put(row);
           return ok(visible<T>(row as Row));
         });
+        if (saved.ok) publish(sink, [layout.storeName]);
+        return saved;
       } catch (error) {
         return err(writeError(error));
       }
     }
 
     async function remove(id: Id, expectedVersion?: number): Promise<Result<void, DomainError>> {
+      let touched: string[] = [];
       try {
-        return await inTransaction(async () => {
+        const removed = await inTransaction(async () => {
           const plan = await planDeletion(environment, entityKey, id);
           if (expectedVersion !== undefined && plan.root?._v !== expectedVersion) {
             return err(versionConflict(entityKey, expectedVersion, plan.root?._v ?? null));
@@ -182,8 +202,17 @@ export function createRecordAccess(
           if (plan.root === undefined) return ok(undefined);
           if (plan.blockers.length > 0) return err(blockedError(entityKey, id, plan.blockers));
           await applyDeletion(environment, plan, actor(), now().toISOString());
+          const storeOf = (items: Iterable<{ entity: string }>) =>
+            [...items].map((item) => environment.layout.entities.get(item.entity)?.storeName ?? '');
+          touched = [
+            ...storeOf(plan.remove.values()),
+            ...storeOf(plan.clear),
+            ...[...plan.junctionRows.values()].map((link) => link.store),
+          ];
           return ok(undefined);
         });
+        if (removed.ok) publish(sink, touched);
+        return removed;
       } catch (error) {
         return err(writeError(error));
       }
@@ -195,15 +224,46 @@ export function createRecordAccess(
         const row = (await table.get(id)) as Row | undefined;
         return row === undefined ? null : visible<T>(row);
       },
+      query: async (spec: QuerySpec): Promise<Page<T>> => {
+        // Checked before anything is awaited: inside a transaction nothing but a request may be.
+        if (spec.source !== entityKey) {
+          throw new DataError(
+            domainError('QUERY_INVALID', `this repository is for ${entityKey}, not ${spec.source}`),
+          );
+        }
+        const prepared = prepareQuery(environment, spec);
+        if (!prepared.ok) throw new DataError(prepared.error);
+        const run = await executeQuery(environment, prepared.value);
+        if (!run.ok) throw new DataError(run.error);
+        return run.value.page as unknown as Page<T>;
+      },
       save,
       delete: remove,
     };
   }
 
   return {
-    entity,
-    links: (relationId) => relationLinks(environment, relationId, inTransaction, writeError),
+    entity: (entityKey) => entity(entityKey),
+    changes,
+    links: (relationId) => {
+      const links = relationLinks(environment, relationId, inTransaction, writeError);
+      const store = environment.layout.relations.find((r) => r.id === relationId)?.junctionStore;
+      const told = (result: Result<void, DomainError>): Result<void, DomainError> => {
+        if (result.ok && store !== undefined) publish(undefined, [store]);
+        return result;
+      };
+      return {
+        ...links,
+        link: async (sourceId, targetId) => told(await links.link(sourceId, targetId)),
+        unlink: async (sourceId, targetId) => told(await links.unlink(sourceId, targetId)),
+      };
+    },
     /** Throw from `work` to undo everything it wrote. It must wait for nothing but these operations. */
-    transaction: (work) => inTransaction(() => work({ of: entity })),
+    transaction: async (work) => {
+      const touched = new Set<string>();
+      const result = await inTransaction(() => work({ of: (key) => entity(key, touched) }));
+      publish(undefined, touched);
+      return result;
+    },
   };
 }

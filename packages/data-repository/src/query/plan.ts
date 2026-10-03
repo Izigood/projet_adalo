@@ -35,6 +35,8 @@ export type Planned = {
   readonly sort: QueryPlan['sort'];
   /** The index order is walked backwards (the sort is descending and the index does it). */
   readonly reverse: boolean;
+  /** A text search is checked row by row too. */
+  readonly searched: boolean;
 };
 
 type Candidate = { score: number; access: Access; consumed: ResolvedCondition[] };
@@ -152,14 +154,14 @@ export function planQuery(query: ResolvedQuery): Planned {
       reverse = first.dir === 'desc';
     }
   }
-  return { access, residual, sort, reverse };
+  return { access, residual, sort, reverse, searched: query.search !== undefined };
 }
 
 export function describePlan(planned: Planned): QueryPlan {
   return {
     access: planned.access.kind,
     ...(planned.access.index === undefined ? {} : { index: planned.access.index.dexieName }),
-    residual: planned.residual.length,
+    residual: planned.residual.length + (planned.searched ? 1 : 0),
     sort: planned.sort,
   };
 }

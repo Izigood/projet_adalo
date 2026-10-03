@@ -1,12 +1,13 @@
-import type { DomainError, Page, QuerySpec, Result } from '@acs/domain';
 import { err, ok } from '@acs/domain';
+import type { DomainError, JsonValue, Page, QuerySpec, Result } from '@acs/domain';
 import type { Collection, Table } from 'dexie';
 import type { OpenEnvironment } from '../storage/database.js';
 import { storageError } from '../storage/database.js';
-import { compareWithAbsent, matches } from './compare.js';
+import { computeAggregates } from './aggregate.js';
+import { compareWithAbsent, matches, matchesSearch } from './compare.js';
 import { encodeCursor } from './cursor.js';
 import { describePlan, planQuery } from './plan.js';
-import type { Access, QueryPlan } from './plan.js';
+import type { Access, Planned, QueryPlan } from './plan.js';
 import { resolveQuery } from './spec.js';
 import type { ResolvedQuery } from './spec.js';
 
@@ -18,6 +19,13 @@ export type QueryRun = {
   readonly plan: QueryPlan;
   /** Rows read from the store, those returned and those only looked at: the proof of an index. */
   readonly examined: number;
+};
+
+/** A query that has been checked and planned, and has not read anything yet. */
+export type PreparedQuery = {
+  readonly query: ResolvedQuery;
+  readonly planned: Planned;
+  readonly store: string;
 };
 
 function open(table: Table, access: Access): Collection {
@@ -71,48 +79,61 @@ function sorter(query: ResolvedQuery): (a: QueryRow, b: QueryRow) => number {
 }
 
 /**
- * Runs a query on one entity (EF-BND-03): the filter goes through an index when one serves it, the
- * rest is checked row by row, the sort uses an index when it can and is done in memory otherwise,
- * and a page of at most 500 rows comes with the cursor of the next one. Without `page`, the first
- * 500 rows are returned.
+ * Checks a query and plans it, with no I/O: the part of `runQuery` that can fail on the query
+ * itself. It is separate so that a caller inside a transaction can refuse a bad query without
+ * awaiting anything (see `createRecordAccess`).
  */
-export async function runQuery(
+export function prepareQuery(
   environment: OpenEnvironment,
   spec: QuerySpec,
-): Promise<Result<QueryRun, DomainError>> {
+): Result<PreparedQuery, DomainError> {
   const layout = environment.layout.entities.get(spec.source);
   if (layout === undefined) {
     return err(storageError(new RangeError(`the project has no entity ${spec.source}`)));
   }
   const resolved = resolveQuery(layout, spec);
   if (!resolved.ok) return resolved;
-  const query = resolved.value;
-  const planned = planQuery(query);
+  return ok({ query: resolved.value, planned: planQuery(resolved.value), store: layout.storeName });
+}
 
+/** Reads what a prepared query asks for. Always makes at least one request. */
+export async function executeQuery(
+  environment: OpenEnvironment,
+  { query, planned, store }: PreparedQuery,
+): Promise<Result<QueryRun, DomainError>> {
   let examined = 0;
   try {
-    let collection = open(environment.db.table(layout.storeName), planned.access);
+    let collection = open(environment.db.table(store), planned.access);
     if (planned.reverse) collection = collection.reverse();
     collection = collection.filter((row: QueryRow) => {
       examined += 1;
-      return planned.residual.every((condition) => matches(row, condition));
+      return (
+        planned.residual.every((condition) => matches(row, condition)) &&
+        (query.search === undefined || matchesSearch(row, query.search))
+      );
     });
-    const rows: QueryRow[] =
-      planned.sort === 'memory'
-        ? (await collection.toArray())
-            .sort(sorter(query))
-            .slice(query.offset, query.offset + query.size + 1)
-        : await collection
-            .offset(query.offset)
-            .limit(query.size + 1)
-            .toArray();
+
+    let rows: QueryRow[];
+    let aggregates: Record<string, JsonValue> | undefined;
+    if (planned.sort === 'memory' || query.aggregates !== undefined) {
+      // Everything that matches is needed: to sort it, or to aggregate it.
+      const all: QueryRow[] = await collection.toArray();
+      if (query.aggregates !== undefined) aggregates = computeAggregates(all, query.aggregates);
+      if (planned.sort === 'memory') all.sort(sorter(query));
+      rows = all.slice(query.offset, query.offset + query.size + 1);
+    } else {
+      rows = await collection
+        .offset(query.offset)
+        .limit(query.size + 1)
+        .toArray();
+    }
 
     const more = rows.length > query.size;
-    const items = rows.slice(0, query.size).map((row) => present(row, query.projection));
     return ok({
       page: {
-        items,
+        items: rows.slice(0, query.size).map((row) => present(row, query.projection)),
         ...(more ? { nextCursor: encodeCursor(query.offset + query.size, query.fingerprint) } : {}),
+        ...(aggregates === undefined ? {} : { aggregates }),
       },
       plan: describePlan(planned),
       examined,
@@ -120,4 +141,19 @@ export async function runQuery(
   } catch (error) {
     return err(storageError(error));
   }
+}
+
+/**
+ * Runs a query on one entity (EF-BND-03): the filter goes through an index when one serves it, the
+ * rest (and the text search) is checked row by row, the sort uses an index when it can and is
+ * done in memory otherwise, and a page of at most 500 rows comes with the cursor of the next one.
+ * Without `page`, the first 500 rows are returned. Aggregates are over every row that matches,
+ * not over the page.
+ */
+export async function runQuery(
+  environment: OpenEnvironment,
+  spec: QuerySpec,
+): Promise<Result<QueryRun, DomainError>> {
+  const prepared = prepareQuery(environment, spec);
+  return prepared.ok ? executeQuery(environment, prepared.value) : prepared;
 }

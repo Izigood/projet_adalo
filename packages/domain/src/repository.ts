@@ -75,9 +75,12 @@ export type Draft<T extends RecordEnvelope> = Omit<T, EnvelopeKey> & {
   readonly id?: Id;
 };
 
-/** Minimal reactive source: calls back with the current value, then at every change. */
+/**
+ * Minimal reactive source: calls back with the current value, then at every change. A failure
+ * while refreshing (the data base became unusable) is given to `onError`; the subscription goes on.
+ */
 export type Observable<T> = {
-  subscribe(observer: (value: T) => void): () => void;
+  subscribe(observer: (value: T) => void, onError?: (error: DomainError) => void): () => void;
 };
 
 /** The operations of one entity; inside a transaction these are all there is. */
