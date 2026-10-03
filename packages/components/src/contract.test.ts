@@ -57,6 +57,7 @@ describe('the palette labels (ENF-10)', () => {
       expect(paletteLabel(definition.id), definition.id).toBeTruthy();
     }
     const known = new Set(BASE_DEFINITIONS.map((definition) => `component.${definition.id}`));
-    expect(Object.keys(fr).filter((key) => !known.has(key))).toEqual([]);
+    const palette = Object.keys(fr).filter((key) => key.startsWith('component.'));
+    expect(palette.filter((key) => !known.has(key))).toEqual([]);
   });
 });

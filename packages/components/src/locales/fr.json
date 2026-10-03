@@ -10,5 +10,13 @@
   "component.navigation.tabBar": "Barre d'onglets",
   "component.navigation.breadcrumb": "Fil d'Ariane",
   "component.navigation.backButton": "Bouton retour",
-  "component.navigation.link": "Lien"
+  "component.navigation.link": "Lien",
+  "component.info.text": "Texte",
+  "component.info.title": "Titre",
+  "component.info.badge": "Badge",
+  "component.info.alert": "Alerte",
+  "text.alert.info": "Information :",
+  "text.alert.success": "Succès :",
+  "text.alert.warning": "Attention :",
+  "text.alert.danger": "Erreur :"
 }

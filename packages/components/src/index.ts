@@ -3,6 +3,10 @@ import type { ComponentDefinition, ComponentRegistry } from '@acs/component-sdk'
 import { defineElements } from './base/define.js';
 import type { BaseComponent } from './base/define.js';
 import fr from './locales/fr.json';
+import { infoAlert } from './info/alert.js';
+import { infoBadge } from './info/badge.js';
+import { infoText } from './info/text.js';
+import { infoTitle } from './info/title.js';
 import { navigationBackButton } from './navigation/back-button.js';
 import { navigationBreadcrumb } from './navigation/breadcrumb.js';
 import { navigationLink } from './navigation/link.js';
@@ -32,6 +36,10 @@ export const BASE_COMPONENTS: readonly BaseComponent[] = [
   navigationBreadcrumb,
   navigationBackButton,
   navigationLink,
+  infoText,
+  infoTitle,
+  infoBadge,
+  infoAlert,
 ];
 
 export const BASE_DEFINITIONS: readonly ComponentDefinition[] = BASE_COMPONENTS.map(
