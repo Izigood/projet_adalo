@@ -53,7 +53,14 @@ export type EntityLayout = {
   readonly indexes: readonly IndexInfo[];
 };
 
+/** The entities and relations a layout was built from: what a data base records, to compare with a later schema. */
+export type SchemaSnapshot = {
+  readonly entities: readonly Entity[];
+  readonly relations: readonly Relation[];
+};
+
 export type DataLayout = {
+  readonly schema: SchemaSnapshot;
   readonly entities: ReadonlyMap<string, EntityLayout>;
   readonly relations: readonly RelationLayout[];
   readonly foreignKeys: readonly ForeignKeyInfo[];
@@ -197,6 +204,7 @@ export function buildLayout(
   }
   const sorted = [...stores].sort((a, b) => a.name.localeCompare(b.name));
   return ok({
+    schema: { entities, relations },
     entities: layouts,
     relations: resolved.relations,
     foreignKeys: resolved.foreignKeys,

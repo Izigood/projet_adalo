@@ -2,7 +2,7 @@ import { domainError, err, ok } from '@acs/domain';
 import type { DomainError, Result } from '@acs/domain';
 import { PROJECT_KEY_PATTERN } from '@acs/project-schema';
 import Dexie from 'dexie';
-import type { DataLayout } from './layout.js';
+import type { DataLayout, SchemaSnapshot } from './layout.js';
 
 /** `test` holds the data of the preview, `prod` those of the published application (RG-04). */
 export type DataEnvironment = 'test' | 'prod';
@@ -32,7 +32,13 @@ export type OpenOptions = {
 const PROJECT_KEY = new RegExp(PROJECT_KEY_PATTERN);
 
 /** The schema row of `_meta`: what the stores of this data base were built from. */
-type SchemaRow = { readonly key: 'schema'; readonly version: number; readonly signature: string };
+export type SchemaRow = {
+  readonly key: 'schema';
+  readonly version: number;
+  readonly signature: string;
+  /** What the stores were built from: the migration engine compares it with a later schema. */
+  readonly schema?: SchemaSnapshot;
+};
 
 /** `acs-data-{key}-{env}` (dossier 6.4); the key is checked so that it cannot shape another name. */
 export function databaseName(
@@ -129,7 +135,12 @@ async function create(
     Object.fromEntries(options.layout.stores.map((store) => [store.name, store.schema])),
   );
   await db.open();
-  const row: SchemaRow = { key: 'schema', version: 1, signature: options.layout.signature };
+  const row: SchemaRow = {
+    key: 'schema',
+    version: 1,
+    signature: options.layout.signature,
+    schema: options.layout.schema,
+  };
   await db.table('_meta').put({ ...row, createdAt: new Date().toISOString() });
   return finish(db);
 }

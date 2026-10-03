@@ -27,6 +27,7 @@ export type {
   IndexInfo,
   OnDelete,
   RelationLayout,
+  SchemaSnapshot,
   StoreSpec,
 } from './storage/layout.js';
 export {
@@ -41,6 +42,10 @@ export type {
   OpenEnvironment,
   OpenOptions,
 } from './storage/database.js';
+export { conversionFor } from './migrations/convert.js';
+export type { Conversion } from './migrations/convert.js';
+export { planMigration } from './migrations/plan.js';
+export type { MigrationOp, MigrationPlan, PlanStep } from './migrations/plan.js';
 export { executeQuery, prepareQuery, runQuery } from './query/run.js';
 export type { PreparedQuery, QueryRow, QueryRun } from './query/run.js';
 export type { AccessKind, QueryPlan } from './query/plan.js';
