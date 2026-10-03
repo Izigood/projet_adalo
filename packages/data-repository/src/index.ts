@@ -38,5 +38,14 @@ export type {
   OpenEnvironment,
   OpenOptions,
 } from './storage/database.js';
+export { constraintError, normaliseRecord } from './repository/constraints.js';
+export type { Violation } from './repository/constraints.js';
+export { createRecordAccess, writeError } from './repository/record-access.js';
+export type {
+  AccessOptions,
+  RecordAccess,
+  RecordOperations,
+  RecordUnitOfWork,
+} from './repository/record-access.js';
 export { requestPersistence } from './storage/persistence.js';
 export type { PersistenceState, StorageManagerLike } from './storage/persistence.js';

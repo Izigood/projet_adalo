@@ -42,6 +42,15 @@ Le § 7.1 donne `Repository` et `QuerySpec`, mais laisse plusieurs points ouvert
 - **Persistance** (REC-01) : `requestPersistence` demande `storage.persist()` (sans le redemander si `persisted()` répond oui) et renvoie `persistent`, `best-effort` ou `unsupported`, sans jamais lever d'exception. L'indicateur visible (RG-15) relève de l'interface, hors du lot.
 - **Dépendances** : `dexie` 4.4.6 (Apache-2.0) ; `fake-indexeddb` 6.2.5 (Apache-2.0, en test), dont la licence est Apache-2.0 et non MIT.
 
+**Écritures** (étape 4) : `createRecordAccess` lit et écrit les enregistrements d'une base ouverte. Les requêtes s'y ajoutent à l'étape 6, pour former le `Repository` complet du port.
+
+- **`save`** : sans `id`, crée (UUID v7 généré) ; avec un `id`, remplace l'enregistrement s'il existe, le crée sinon (un identifiant choisi par l'appelant est permis : import, fixtures). C'est un remplacement complet, pas une fusion. L'enveloppe est tenue par le Repository : `_v` monte de 1, `_createdAt` et `_createdBy` sont conservés, `_updatedAt` et `_updatedBy` suivent l'écriture. L'auteur et l'horloge sont injectés (`actor`, `now`).
+- **Verrou optimiste** : un `expectedVersion` qui n'est pas la version stockée, ou qui vise un enregistrement absent, donne `VERSION_CONFLICT` (avec `expected` et `found`) sans rien écrire. Sans `expectedVersion`, la dernière écriture gagne. Vaut aussi pour `delete`.
+- **Contraintes** (EF-DAT-03), contrôlées dans le Repository : champ inconnu refusé ; le défaut remplit un champ absent mais pas un champ à `null` (effacer un champ obligatoire est une erreur, pas un retour au défaut) ; un champ obligatoire doit avoir une valeur ; chaque valeur doit respecter son type et ses options (étape 2). Un champ facultatif sans valeur est omis de l'enregistrement, donc absent des index. Toutes les violations sont rendues d'un coup (`details.violations`, chacune liée à son champ). Un défaut objet est copié à chaque enregistrement.
+- **Unicité** : vérifiée avant l'écriture, dans la transaction, pour que l'erreur nomme les champs ; l'index unique d'IndexedDB reste le filet, et son refus est traduit en `CONSTRAINT_VIOLATION`.
+- **Transactions** : chaque écriture est une transaction sur tous les stores de données (`e_*`, `j_*`) : tout ou rien, et deux écritures ne s'entremêlent pas. Cela sérialise les écritures de l'application, ce qui suffit à un MVP local. `transaction(work)` annule tout si `work` lève une exception ; une `Result` en erreur ne l'annule pas, c'est à l'appelant de lever. `work` ne doit rien attendre d'autre que ces opérations.
+- **Hors périmètre de cette étape** : l'existence de la cible d'une `reference` et les `onDelete` (étape 5), les requêtes (étape 6).
+
 ## Conséquences
 
 - Le lot 8 branchera `where` sans changer le port.

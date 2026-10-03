@@ -29,6 +29,8 @@ export type FieldInfo = {
   readonly unique: boolean;
   readonly classification: Field['classification'];
   readonly derived?: DerivedKey;
+  /** The field as the manifest declares it: its options and default. */
+  readonly definition: Field;
 };
 
 export type IndexInfo = {
@@ -77,6 +79,7 @@ function fieldInfo(field: Field): FieldInfo {
     required: field.required,
     unique: field.unique === true,
     classification: field.classification,
+    definition: field,
     ...(derived === undefined ? {} : { derived }),
   };
 }
