@@ -5,6 +5,7 @@ import {
   legacyV0Fixture,
   minimalFixture,
   referenceFixture,
+  responsiveFixture,
 } from './index.js';
 
 /**
@@ -32,6 +33,11 @@ const PINNED: ReadonlyArray<readonly [string, () => unknown, string]> = [
     'reference',
     referenceFixture,
     'cc3cf31a8e7b70ebac01c8a68b88dbb9dde09d72fc0fe9ed481e062513d13756',
+  ],
+  [
+    'responsive',
+    responsiveFixture,
+    '489f9fc7b2768d985f2499619bdab9b335c6d89c76b427adf83758c2761d6171',
   ],
   ['complete', completeFixture, '52228af105ddd25fb8da8068f477f77e94445ca959e618238c62046222393bd0'],
   [

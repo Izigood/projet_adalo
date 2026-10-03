@@ -150,6 +150,53 @@ describe('e2e gate (REC-10): Runtime shell', () => {
     expect(results.filter((result) => result.ok).map((result) => result.title)).toEqual([]);
   }, 120_000);
 });
-it('e2e gate: the title of the minimal fixture was read from the E2E targets', () => {
+/** The title of the responsive fixture, read as data like the one of the minimal fixture. */
+const responsiveTitle =
+  /RESPONSIVE_TITLE = '([^']+)'/.exec(
+    readFileSync(resolve(repoRoot, 'e2e/targets.ts'), 'utf8'),
+  )?.[1] ?? '';
+
+/**
+ * A page that has the right title, a grid and a menu, but never looks at the window: the grid has
+ * four columns and the menu is a row whatever the width, and nothing listens to a resize.
+ */
+const windowBlindPage = (title: string): string =>
+  `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Fixe</title><style>` +
+  `acs-structure-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}` +
+  `acs-navigation-menu{display:flex;gap:16px}</style></head><body><main><h1>${title}</h1>` +
+  `<acs-navigation-menu><a href="#/">Accueil</a><a href="#/o">Commandes</a></acs-navigation-menu>` +
+  `<acs-structure-grid><acs-info-indicator>1</acs-info-indicator><acs-info-indicator>2</acs-info-indicator>` +
+  `<acs-info-indicator>3</acs-info-indicator><acs-info-indicator>4</acs-info-indicator></acs-structure-grid>` +
+  `</main></body></html>`;
+
+describe('e2e gate (REC-10): Runtime responsive', () => {
+  it('fails every responsive spec against a page that shows the title but ignores the project and the window', async () => {
+    const results = await runSpecs(
+      'Runtime responsive',
+      await serve(runtimePage(responsiveTitle, '')),
+    );
+    expect(results).toHaveLength(14);
+    expect(results.filter((result) => result.ok).map((result) => result.title)).toEqual([]);
+  }, 120_000);
+
+  it('fails exactly the breakpoint specs against a page that has the grid and the menu but ignores the window', async () => {
+    const results = await runSpecs(
+      'Runtime responsive',
+      await serve(windowBlindPage(responsiveTitle)),
+    );
+    // What a page that never reads the width gets wrong: the columns below 1024 px, the menu on a
+    // phone, and following a resize. What it gets right by accident (four columns at 1280 px, a row
+    // of links) must still pass, or the specs would be failing for another reason.
+    expect(outcome(results, 'lays the grid out in 1 column(s) at 360 px')).toBe(false);
+    expect(outcome(results, 'lays the grid out in 2 column(s) at 768 px')).toBe(false);
+    expect(outcome(results, 'lays the grid out in 4 column(s) at 1280 px')).toBe(true);
+    expect(outcome(results, 'puts the menu in a column on a phone')).toBe(false);
+    expect(outcome(results, 'follows the window while it is open')).toBe(false);
+    expect(outcome(results, 'shows the line break of a text on two lines')).toBe(false);
+  }, 120_000);
+});
+
+it('e2e gate: the titles of the fixtures were read from the E2E targets', () => {
   expect(minimalTitle).not.toBe('');
+  expect(responsiveTitle).not.toBe('');
 });

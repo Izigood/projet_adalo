@@ -11,3 +11,6 @@ export const SURFACE = {
 
 /** The title of the page of the minimal fixture, which the Runtime shows (pinned by its digest). */
 export const MINIMAL_TITLE = 'Bonjour';
+
+/** The title of the page of the responsive fixture (pinned by its digest). */
+export const RESPONSIVE_TITLE = 'Tableau de bord';

@@ -4,7 +4,13 @@ import type { EntitiesFile, PackageFiles, ProjectManifest } from '@acs/project-s
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { VALID_FIXTURES, consistencyProblems, minimalFixture, referenceFixture } from './index.js';
+import {
+  VALID_FIXTURES,
+  consistencyProblems,
+  minimalFixture,
+  referenceFixture,
+  responsiveFixture,
+} from './index.js';
 
 const names = Object.keys(VALID_FIXTURES);
 
@@ -96,5 +102,18 @@ describe('the title the E2E suite expects', () => {
     const [node] = Object.values(page.nodes);
     const targets = readFileSync(resolve(import.meta.dirname, '../../../e2e/targets.ts'), 'utf8');
     expect(/MINIMAL_TITLE = '([^']+)'/.exec(targets)?.[1]).toBe(node?.props.text);
+  });
+
+  it('is the level 1 title of the responsive fixture', () => {
+    const files = responsiveFixture();
+    const pagePath = Object.keys(files).find((path) => schemaForPath(path) === 'Page') as string;
+    const page = files[pagePath] as {
+      nodes: Record<string, { component: string; props: { text?: string; level?: number } }>;
+    };
+    const title = Object.values(page.nodes).find(
+      (node) => node.component === 'info.title@1' && node.props.level === 1,
+    );
+    const targets = readFileSync(resolve(import.meta.dirname, '../../../e2e/targets.ts'), 'utf8');
+    expect(/RESPONSIVE_TITLE = '([^']+)'/.exec(targets)?.[1]).toBe(title?.props.text);
   });
 });

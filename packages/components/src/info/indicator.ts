@@ -33,8 +33,10 @@ export class AcsInfoIndicator extends AcsElement<Props> {
     css`
       :host {
         display: block;
+        height: 100%;
       }
       div {
+        height: 100%;
         display: flex;
         flex-direction: column;
         gap: var(--acs-space-1);

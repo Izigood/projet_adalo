@@ -28,6 +28,7 @@
     "verify": "pnpm install --frozen-lockfile && pnpm generate && pnpm format:check && pnpm typecheck && pnpm lint && pnpm depcruise && pnpm test && pnpm test:gates && pnpm build && pnpm test:e2e && pnpm test:gates-e2e && pnpm security"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.3",
