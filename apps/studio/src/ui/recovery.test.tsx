@@ -3,7 +3,7 @@ import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../app.js';
 import { pageRename } from '../commands/page-commands.js';
 import { projectUpdate } from '../commands/project-commands.js';
@@ -45,6 +45,23 @@ const button = (container: HTMLElement, label: string): HTMLButtonElement => {
   return found;
 };
 
+/** Clicks, and waits inside `act` for the effect that the click starts (it runs on IndexedDB). */
+async function click(target: HTMLElement, until?: () => void) {
+  await act(async () => void target.click());
+  if (until === undefined) return;
+  // React renders when an act scope ends, not inside it: wait in small scopes, and look between them.
+  let last: unknown;
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 5)));
+    try {
+      until();
+      return;
+    } catch (error) {
+      last = error;
+    }
+  }
+  throw last;
+}
 /** A project whose draft is on offer: a tab left it invalid and closed without a word. */
 async function withDraft() {
   const source = browser();
@@ -140,8 +157,9 @@ describe('the recovery draft on screen (RG-13)', () => {
   it('takes the draft back when asked, and the banner goes', async () => {
     const { services } = await withDraft();
     const container = await render(services);
-    await act(async () => button(container, fr['recovery.recover']).click());
-    expect(container.querySelector('[role="alert"]')).toBeNull();
+    await click(button(container, fr['recovery.recover']), () =>
+      expect(container.querySelector('[role="alert"]')).toBeNull(),
+    );
     const state = services.project.view.getState();
     expect(state?.pages.byId[state.initialPageId]?.key).toBe('Not A Key');
   });
@@ -149,8 +167,9 @@ describe('the recovery draft on screen (RG-13)', () => {
   it('throws the draft away when asked, and the project stays as it was saved', async () => {
     const { services, id } = await withDraft();
     const container = await render(services);
-    await act(async () => button(container, fr['recovery.dismiss']).click());
-    await vi.waitFor(() => expect(container.querySelector('[role="alert"]')).toBeNull());
+    await click(button(container, fr['recovery.dismiss']), () =>
+      expect(container.querySelector('[role="alert"]')).toBeNull(),
+    );
     expect(await services.store.loadDraft(id)).toEqual({ ok: true, value: null });
     const state = services.project.view.getState();
     expect(state?.pages.byId[state.initialPageId]?.key).toBe('home');
@@ -168,10 +187,12 @@ describe('the recovery draft on screen (RG-13)', () => {
     });
     await services.session.open(made.value.id);
     const container = await render(services);
-    await act(async () => button(container, fr['recovery.recover']).click());
-    expect(container.querySelector('.banner-failure')?.textContent).toBe(fr['recovery.failed']);
-    await act(async () => button(container, fr['recovery.dismiss']).click());
-    await vi.waitFor(() => expect(container.querySelector('[role="alert"]')).toBeNull());
+    await click(button(container, fr['recovery.recover']), () =>
+      expect(container.querySelector('.banner-failure')?.textContent).toBe(fr['recovery.failed']),
+    );
+    await click(button(container, fr['recovery.dismiss']), () =>
+      expect(container.querySelector('[role="alert"]')).toBeNull(),
+    );
   });
 
   it('says so when the draft cannot be thrown away, and stops saying it once it can', async () => {
@@ -183,13 +204,15 @@ describe('the recovery draft on screen (RG-13)', () => {
         ok: false,
         error: { code: 'STORAGE_UNAVAILABLE', message: 'disk', correlationId: 'x' },
       });
-    await act(async () => button(container, fr['recovery.dismiss']).click());
-    expect(container.querySelector('.banner-failure')?.textContent).toBe(
-      fr['recovery.dismissFailed'],
+    await click(button(container, fr['recovery.dismiss']), () =>
+      expect(container.querySelector('.banner-failure')?.textContent).toBe(
+        fr['recovery.dismissFailed'],
+      ),
     );
     services.store.discardDraft = discard;
-    await act(async () => button(container, fr['recovery.dismiss']).click());
-    await vi.waitFor(() => expect(container.querySelector('[role="alert"]')).toBeNull());
+    await click(button(container, fr['recovery.dismiss']), () =>
+      expect(container.querySelector('[role="alert"]')).toBeNull(),
+    );
   });
 });
 
@@ -204,9 +227,12 @@ describe('closing the project', () => {
     const made = await act(async () => services.session.create({ key: 'DEMO', name: 'Demo' }));
     if (!made.ok) throw new Error(made.error.message);
     await act(async () => void services.bus.execute(projectUpdate({ name: 'Avant fermeture' })));
-    await act(async () => button(container, fr['project.close']).click());
+    // Closed, and the catalogue that comes back lists the project with what was saved on the way.
+    await click(button(container, fr['project.close']), () => {
+      expect(services.project.view.getState()).toBeNull();
+      expect(container.querySelector('.catalog-item h3')?.textContent).toBe('Avant fermeture');
+    });
 
-    await vi.waitFor(() => expect(services.project.view.getState()).toBeNull());
     expect(container.querySelector('main')?.textContent).toContain(fr['studio.subtitle']);
     const stored = await services.store.load(made.value.id);
     expect(stored.ok && stored.value?.entry.name).toBe('Avant fermeture');

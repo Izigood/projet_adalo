@@ -1,4 +1,5 @@
 import { t } from '../i18n.js';
+import { CatalogScreen } from './catalog-screen.js';
 import { HistoryControls } from './history-controls.js';
 import { PersistenceNotice } from './persistence-notice.js';
 import { RecoveryBanner } from './recovery-banner.js';
@@ -31,7 +32,7 @@ export function Shell() {
       </header>
       <nav className="zone zone-nav" aria-label={t('zone.nav')} />
       <main className="zone zone-work">
-        {open === null ? <p>{t('studio.subtitle')}</p> : <RecoveryBanner />}
+        {open === null ? <CatalogScreen /> : <RecoveryBanner />}
         <PersistenceNotice />
       </main>
       <aside className="zone zone-inspector" aria-label={t('zone.inspector')} />

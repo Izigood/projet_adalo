@@ -112,6 +112,59 @@ button:disabled {
   color: var(--acs-color-danger);
 }
 
+.catalog h2 {
+  margin: 0 0 var(--acs-space-2);
+  font-size: var(--acs-font-size-lg);
+}
+
+.catalog-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acs-space-2) var(--acs-space-3);
+  margin: var(--acs-space-3) 0;
+}
+
+.catalog-controls input,
+.catalog-controls select {
+  min-height: var(--acs-density-control-height);
+  padding: 0 var(--acs-space-2);
+  border: 1px solid var(--acs-color-border);
+  border-radius: var(--acs-radius-md);
+  background: var(--acs-color-surface);
+}
+
+.catalog-list {
+  display: grid;
+  gap: var(--acs-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-item {
+  padding: var(--acs-space-3);
+  border: 1px solid var(--acs-color-border);
+  border-radius: var(--acs-radius-md);
+}
+
+.catalog-item h3 {
+  margin: 0 0 var(--acs-space-1);
+  font-size: var(--acs-font-size-md);
+}
+
+.catalog-meta,
+.catalog-empty {
+  color: var(--acs-color-text-muted);
+}
+
+.catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acs-space-2);
+  margin-top: var(--acs-space-2);
+}
+
 .zone-nav {
   grid-area: nav;
   border-inline-end: 1px solid var(--acs-color-border);

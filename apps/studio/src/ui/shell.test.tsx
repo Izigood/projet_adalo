@@ -64,12 +64,14 @@ describe('the five zones (ARC-STU-01)', () => {
     expect(container.querySelector('nav')?.getAttribute('aria-label')).toBe(fr['zone.nav']);
     expect(container.querySelectorAll('main')).toHaveLength(1);
     expect(container.querySelector('aside')?.getAttribute('aria-label')).toBe(fr['zone.inspector']);
-    expect(container.querySelector('section')?.getAttribute('aria-label')).toBe(fr['zone.panel']);
+    expect(container.querySelector('section.zone-panel')?.getAttribute('aria-label')).toBe(
+      fr['zone.panel'],
+    );
   });
 
   it('says there is no project open, and has nothing to undo, redo or save', async () => {
     const { container } = await render();
-    expect(container.querySelector('main')?.textContent).toBe(fr['studio.subtitle']);
+    expect(container.querySelector('main')?.textContent).toContain(fr['studio.subtitle']);
     expect(button(container, fr['history.undo']).disabled).toBe(true);
     expect(button(container, fr['history.redo']).disabled).toBe(true);
     expect(container.querySelector('output')?.textContent).toBe('');
