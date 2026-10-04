@@ -76,7 +76,27 @@ function listed<T>(collection: Collection<T>): T[] {
 export function fromFiles(files: ParsedFiles): Result<ProjectState, DomainError> {
   const valid = validateFiles(files);
   if (!valid.ok) return valid;
+  return readState(files);
+}
 
+/**
+ * Reads files the Studio wrote itself (`toFiles`) back into the state, without applying the
+ * schemas: a draft is a project that did not pass them (RG-13), and it must still be reopened to be
+ * mended. Files that do not have the layout `toFiles` gives are an error, never a crash.
+ */
+export function readFiles(files: ParsedFiles): Result<ProjectState, DomainError> {
+  try {
+    return readState(files);
+  } catch (cause) {
+    return err(
+      domainError('MANIFEST_INVALID', 'the files cannot be read as a project', {
+        details: { cause: String(cause) },
+      }),
+    );
+  }
+}
+
+function readState(files: ParsedFiles): Result<ProjectState, DomainError> {
   const manifest = files['project.json'] as unknown as ProjectManifest;
   const wanted = [
     manifest.entries.schema,

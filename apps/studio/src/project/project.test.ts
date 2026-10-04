@@ -7,7 +7,7 @@ import { CORRUPTED_FIXTURES, VALID_FIXTURES } from '@acs/testing';
 import { describe, expect, it } from 'vitest';
 import fr from '../locales/fr.json';
 import { createProject } from './create-project.js';
-import { fromFiles, summaryOf, toFiles } from './project-state.js';
+import { fromFiles, readFiles, summaryOf, toFiles } from './project-state.js';
 import { createProjectStore } from './project-store.js';
 
 const issuesOf = (error: DomainError): FileIssue[] =>
@@ -119,6 +119,28 @@ describe('the normalised state (ARC-STU-01)', () => {
     expect(state.value.routes.map((route) => route.pageId)).toEqual(
       pages.order.filter((id) => state.value.routes.some((route) => route.pageId === id)),
     );
+  });
+
+  it('reads back a project that does not pass the schemas, which fromFiles refuses (a draft, RG-13)', () => {
+    const state = created();
+    const files = toFiles(state);
+    const pageId = state.initialPageId;
+    const broken = structuredClone(files) as unknown as Record<string, { key: string }>;
+    (broken[`pages/${pageId}.json`] as { key: string }).key = 'Not A Key';
+    expect(fromFiles(broken).ok).toBe(false);
+    const read = readFiles(broken);
+    expect(read.ok).toBe(true);
+    if (!read.ok) return;
+    expect(read.value.pages.byId[pageId]?.key).toBe('Not A Key');
+    expect(toFiles(read.value)).toEqual(broken);
+  });
+
+  it('says it cannot read files that do not have the layout the Studio writes, and does not throw', () => {
+    for (const files of [{}, { 'project.json': 'text' }, { 'project.json': { entries: 1 } }]) {
+      const read = readFiles(files);
+      expect(read.ok).toBe(false);
+      if (!read.ok) expect(read.error.code).toBe('MANIFEST_INVALID');
+    }
   });
 
   it('keeps the files it does not edit', () => {
