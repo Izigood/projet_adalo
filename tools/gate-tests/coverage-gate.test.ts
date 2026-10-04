@@ -100,17 +100,20 @@ describe('coverage gate (REC-10)', () => {
   });
 });
 
-// The files of dossier 9.4 that are logic although their package is not: the manifest migrations.
-// Written out on purpose, like the packages above.
+// The files of dossier 9.4 that are logic although their package is not: the manifest migrations and
+// the data migrations. Written out on purpose, like the packages above.
 const MIGRATION_FILES = [
   'packages/project-schema/src/migrations.ts',
   'packages/project-schema/src/migrations/step.ts',
+  'packages/data-repository/src/migrations/plan.ts',
 ] as const;
 /** The threshold key vitest reports for each of them (the second one is a folder glob). */
 const MIGRATION_GLOBS: Record<(typeof MIGRATION_FILES)[number], string> = {
   'packages/project-schema/src/migrations.ts': 'packages/project-schema/src/migrations.ts',
   'packages/project-schema/src/migrations/step.ts':
     'packages/project-schema/src/migrations/**/*.ts',
+  'packages/data-repository/src/migrations/plan.ts':
+    'packages/data-repository/src/migrations/**/*.ts',
 };
 
 const escapeForRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');

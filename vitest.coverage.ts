@@ -4,12 +4,14 @@ import type { CoverageOptions } from 'vitest/node';
 const LOGIC_PACKAGES = ['domain', 'expression', 'policy', 'workflow-engine'] as const;
 
 /**
- * Manifest migrations are logic too: dossier 9.4 lists them with the packages held to the same
- * 90 % / 85 % thresholds. They live in project-schema, which as a whole is not a logic package.
+ * Migrations are logic too: dossier 9.4 lists them with the packages held to the same 90 % / 85 %
+ * thresholds. The manifest migrations live in project-schema and the data migrations (dossier 6.5)
+ * in data-repository, neither of which is a logic package as a whole.
  */
 const MIGRATION_FILES = [
   'packages/project-schema/src/migrations.ts',
   'packages/project-schema/src/migrations/**/*.ts',
+  'packages/data-repository/src/migrations/**/*.ts',
 ] as const;
 
 export const GLOBAL_LINES_THRESHOLD = 80;
