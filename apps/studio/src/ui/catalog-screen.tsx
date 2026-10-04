@@ -4,6 +4,7 @@ import { CATALOG_SORT_FIELDS } from '../catalog/query.js';
 import type { CatalogQuery, CatalogSort } from '../catalog/query.js';
 import { t } from '../i18n.js';
 import type { MessageKey } from '../i18n.js';
+import { CreateProjectForm } from './create-project-form.js';
 import { errorMessage } from './errors.js';
 import { daysUntilPurge, formatDateTime } from './format.js';
 import { useServices } from './services-context.js';
@@ -102,6 +103,8 @@ export function CatalogScreen() {
           {errorMessage(listing.error)}
         </div>
       )}
+
+      <CreateProjectForm />
 
       <div className="catalog-controls" role="search">
         <label htmlFor={`${ids}-search`}>{t('catalog.search')}</label>

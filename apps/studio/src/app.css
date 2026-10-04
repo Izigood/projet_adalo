@@ -117,6 +117,51 @@ button:disabled {
   font-size: var(--acs-font-size-lg);
 }
 
+.create-project {
+  display: grid;
+  gap: var(--acs-space-1);
+  max-width: 32rem;
+  margin: var(--acs-space-3) 0;
+  padding: var(--acs-space-3);
+  border: 1px solid var(--acs-color-border);
+  border-radius: var(--acs-radius-md);
+}
+
+.create-project h3 {
+  margin: 0 0 var(--acs-space-2);
+  font-size: var(--acs-font-size-md);
+}
+
+.create-project input,
+.create-project textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--acs-density-control-height);
+  padding: var(--acs-space-1) var(--acs-space-2);
+  border: 1px solid var(--acs-color-border);
+  border-radius: var(--acs-radius-md);
+  background: var(--acs-color-surface);
+}
+
+.create-project input[aria-invalid='true'] {
+  border-color: var(--acs-color-danger);
+}
+
+.create-project button {
+  justify-self: start;
+  margin-top: var(--acs-space-2);
+}
+
+.field-hint {
+  color: var(--acs-color-text-muted);
+  font-size: var(--acs-font-size-sm);
+}
+
+.field-error {
+  color: var(--acs-color-danger);
+  font-size: var(--acs-font-size-sm);
+}
+
 .catalog-controls {
   display: flex;
   flex-wrap: wrap;
