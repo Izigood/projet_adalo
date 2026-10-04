@@ -1,6 +1,11 @@
+import type { Id } from '@acs/domain';
+import { useState } from 'react';
 import { t } from '../i18n.js';
 import { CatalogScreen } from './catalog-screen.js';
 import { HistoryControls } from './history-controls.js';
+import { PageView } from './page-view.js';
+import { PagesNav } from './pages-nav.js';
+import { Panel } from './panel.js';
 import { PersistenceNotice } from './persistence-notice.js';
 import { RecoveryBanner } from './recovery-banner.js';
 import { SaveBadge } from './save-badge.js';
@@ -15,6 +20,15 @@ import { useView } from './use-view.js';
 export function Shell() {
   const { project, session } = useServices();
   const open = useView(project.view);
+  const [chosen, setChosen] = useState<Id<'page'> | null>(null);
+  // The page chosen, or the first one when it is gone (removed, or another project was opened).
+  const selected =
+    open === null
+      ? null
+      : chosen !== null && open.pages.byId[chosen] !== undefined
+        ? chosen
+        : open.initialPageId;
+
   return (
     <div className="studio-shell">
       <header className="zone zone-top">
@@ -30,13 +44,26 @@ export function Shell() {
         <HistoryControls />
         <SaveBadge />
       </header>
-      <nav className="zone zone-nav" aria-label={t('zone.nav')} />
+      <nav className="zone zone-nav" aria-label={t('zone.nav')}>
+        {open === null || selected === null ? null : (
+          <PagesNav project={open} selected={selected} onSelect={setChosen} />
+        )}
+      </nav>
       <main className="zone zone-work">
-        {open === null ? <CatalogScreen /> : <RecoveryBanner />}
+        {open === null || selected === null ? (
+          <CatalogScreen />
+        ) : (
+          <>
+            <RecoveryBanner />
+            <PageView project={open} pageId={selected} />
+          </>
+        )}
         <PersistenceNotice />
       </main>
       <aside className="zone zone-inspector" aria-label={t('zone.inspector')} />
-      <section className="zone zone-panel" aria-label={t('zone.panel')} />
+      <section className="zone zone-panel" aria-label={t('zone.panel')}>
+        {open === null ? null : <Panel project={open} />}
+      </section>
     </div>
   );
 }

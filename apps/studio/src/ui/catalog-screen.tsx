@@ -88,7 +88,7 @@ export function CatalogScreen() {
   };
 
   return (
-    <section className="catalog" aria-labelledby={`${ids}-title`}>
+    <section className="catalog" aria-labelledby={`${ids}-title`} aria-busy={listing.loading}>
       <h2 id={`${ids}-title`}>{t('catalog.title')}</h2>
       <p>{t('studio.subtitle')}</p>
       {listing.purged === 0 ? null : (

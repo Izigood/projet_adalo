@@ -92,6 +92,14 @@ Le lot 5 demande un Studio dont toute modification passe par un bus de commandes
 
 **Contrôle dans un vrai navigateur** : avant ce commit, l'interface a été parcourue dans un navigateur réel (Chromium, serveur de développement) : zones à 1280 px (navigation 256, travail 736, inspecteur 288, panneau sur toute la largeur), aucun débordement horizontal ni contrôle de moins de 24 px, titres 1-2-3, libellés liés à leur champ, couleur de danger du thème sur l'erreur, création d'un projet avec une clé fausse puis juste, puis rechargement de la page : le projet est dans le catalogue, sur le vrai IndexedDB, avec sa date en français, et l'avertissement de stockage non persistant s'affiche. Le contrôle visuel ne remplace pas les E2E des trois navigateurs de l'étape 8.
 
+**Pages, vue de page et panneau** (étape 7c, première moitié, `ui/pages-nav.tsx`, `page-view.tsx`, `panel.tsx`) : quand un projet est ouvert, la navigation liste ses pages dans leur ordre (clé, route, page d'accueil repérée), pour en choisir une, la monter ou la descendre (désactivé aux extrémités), la supprimer (désactivé pour la page d'accueil) et en ajouter une (clé obligatoire, route `/clé` par défaut). Chaque changement est une commande, donc annulable : rien ne demande de confirmation. Ajouter une page la choisit ; supprimer la page choisie, ou ouvrir un autre projet, ramène à la page d'accueil. Une clé ou une route prise est dite avec les mots de la page (`pages.error.*`). La zone de travail montre la page choisie (clé, route, titre) ; le canvas, où elle sera dessinée et éditée, vient au lot 7 du plan.
+
+Le panneau du bas donne l'historique (les 20 dernières commandes, la plus récente d'abord, et combien d'autres il y a) et la validation : les problèmes que les schémas trouvent dans le projet tel qu'il est, avec le fichier et l'endroit (ce sont ceux qui l'empêchent d'être enregistré, RG-13), les 20 premiers et combien d'autres il y a, ou « le projet est valide ». Les problèmes sont donnés comme les schémas les donnent : c'est ce dont a besoin celui qui répare le projet.
+
+**Chargement du catalogue** : l'écran est `aria-busy` tant que la liste est lue (la première fois, et après chaque question) ; seule la réponse à la dernière question y met fin. Un lecteur d'écran sait ainsi que la liste n'est pas définitive, et les tests attendent la fin de la lecture au lieu de la laisser tomber entre deux portées `act` (cause d'un avertissement intermittent, trouvé par 25 exécutions de suite).
+
+**Écart** : le contrôle `axe-core` annoncé pour cette étape est fait à l'étape 8, dans les trois navigateurs : ses règles de contraste et de mise en page demandent un vrai moteur de rendu, que happy-dom n'est pas.
+
 ## Conséquences
 
 - Le Studio ne dépend pas d'IndexedDB : il parle au port, et les tests unitaires utilisent la version en mémoire.

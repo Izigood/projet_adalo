@@ -439,6 +439,50 @@ describe('when something goes wrong', () => {
   });
 });
 
+describe('while the list is being read', () => {
+  const busy = (container: HTMLElement) =>
+    container.querySelector('section.catalog')?.getAttribute('aria-busy');
+
+  it('is busy until the list is there, and not busy once it is', async () => {
+    const services = createStudioServices(browser());
+    await seed(services, [{ key: 'AA', name: 'Alpha' }]);
+    const container = await renderStudio(services);
+    expect(busy(container)).toBe('false');
+    expect(names(container)).toEqual(['Alpha']);
+  });
+
+  it('is busy again while a new question is being answered, and only the last answer ends it', async () => {
+    const services = createStudioServices(browser());
+    await seed(services, [{ key: 'AA', name: 'Alpha' }]);
+    const container = await renderStudio(services);
+    const list = services.catalog.list;
+    const answers: (() => void)[] = [];
+    services.catalog.list = (query) =>
+      new Promise<Awaited<ReturnType<typeof list>>>((resolve) => {
+        answers.push(() => void list(query).then(resolve));
+      });
+    const search = field<HTMLInputElement>(container, fr['catalog.search']);
+    await typeInto(search, 'a');
+    await typeInto(search, 'al');
+    expect(busy(container)).toBe('true');
+
+    answers[0]?.();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await settle(() => undefined);
+    // The first question is no longer the last: its answer is dropped, and the wait goes on.
+    expect(busy(container)).toBe('true');
+
+    answers[1]?.();
+    await settle(() => expect(busy(container)).toBe('false'));
+  });
+
+  it('is not busy any more when the list could not be read, which it says', async () => {
+    const container = await renderStudio(createStudioServices({}));
+    await settle(() => expect(busy(container)).toBe('false'));
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(fr['error.storage']);
+  });
+});
+
 describe('the words of the errors', () => {
   const error = (code: DomainError['code'], details?: Record<string, unknown>): DomainError =>
     domainError(code, 'x', details === undefined ? {} : { details });

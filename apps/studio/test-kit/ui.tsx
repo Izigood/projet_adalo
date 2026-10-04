@@ -25,6 +25,10 @@ export async function renderStudio(services: StudioServices): Promise<HTMLElemen
   const root = createRoot(container);
   mounted.push({ root, container });
   await act(async () => root.render(<App services={services} />));
+  // A catalogue that is shown reads its list: wait for it, so that its answer lands inside an act.
+  await settle(() => {
+    if (container.querySelector('[aria-busy="true"]') !== null) throw new Error('still reading');
+  });
   return container;
 }
 

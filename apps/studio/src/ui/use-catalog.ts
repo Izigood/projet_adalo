@@ -10,6 +10,8 @@ export type CatalogListing = {
   readonly error: DomainError | null;
   /** How many projects the trash let go of since the catalogue was opened. */
   readonly purged: number;
+  /** True while the list is being read (the first time, and after each question). */
+  readonly loading: boolean;
   /** Reads the list again, with the query of the moment: after a change. */
   refresh(): Promise<void>;
   /** Sets the error shown, for a change that was refused. */
@@ -26,6 +28,7 @@ export function useCatalog(query: CatalogQuery): CatalogListing {
   const [entries, setEntries] = useState<readonly CatalogEntry[]>([]);
   const [error, setError] = useState<DomainError | null>(null);
   const [purged, setPurged] = useState(0);
+  const [loading, setLoading] = useState(true);
   const asked = useRef(0);
   const queryRef = useRef(query);
   queryRef.current = query;
@@ -42,6 +45,7 @@ export function useCatalog(query: CatalogQuery): CatalogListing {
   const read = useCallback(
     async (first: boolean) => {
       const sequence = ++asked.current;
+      setLoading(true);
       let listing: Result<readonly CatalogEntry[], DomainError>;
       if (first) {
         const view = await catalog.open(queryRef.current);
@@ -55,6 +59,8 @@ export function useCatalog(query: CatalogQuery): CatalogListing {
         listing = await catalog.list(queryRef.current);
       }
       if (!alive.current || sequence !== asked.current) return;
+      // Only the answer to the last question ends the wait: an older one that comes back is dropped.
+      setLoading(false);
       if (!listing.ok) {
         setError(listing.error);
         return;
@@ -72,5 +78,5 @@ export function useCatalog(query: CatalogQuery): CatalogListing {
     void read(first);
   }, [key, read]);
 
-  return { entries, error, purged, refresh: () => read(false), fail: setError };
+  return { entries, error, purged, loading, refresh: () => read(false), fail: setError };
 }
