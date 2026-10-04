@@ -105,19 +105,28 @@ export async function executeQuery(
   try {
     let collection = open(environment.db.table(store), planned.access);
     if (planned.reverse) collection = collection.reverse();
-    collection = collection.filter((row: QueryRow) => {
-      examined += 1;
-      return (
-        planned.residual.every((condition) => matches(row, condition)) &&
-        (query.search === undefined || matchesSearch(row, query.search))
-      );
-    });
+    // A filter on the collection makes the browser walk a cursor, a record at a time; without one
+    // (and with a limit, no offset) Dexie asks for the whole range at once with `getAll`, which is
+    // how a page comes back in a few milliseconds (and, on a slow IndexedDB, in one request
+    // instead of one per record). So the records read are counted by a filter only when there is
+    // something to check record by record; otherwise they are the records fetched.
+    const checked = planned.residual.length > 0 || query.search !== undefined;
+    if (checked) {
+      collection = collection.filter((row: QueryRow) => {
+        examined += 1;
+        return (
+          planned.residual.every((condition) => matches(row, condition)) &&
+          (query.search === undefined || matchesSearch(row, query.search))
+        );
+      });
+    }
 
     let rows: QueryRow[];
     let aggregates: Record<string, JsonValue> | undefined;
     if (planned.sort === 'memory' || query.aggregates !== undefined) {
       // Everything that matches is needed: to sort it, or to aggregate it.
       const all: QueryRow[] = await collection.toArray();
+      if (!checked) examined = all.length;
       if (query.aggregates !== undefined) aggregates = computeAggregates(all, query.aggregates);
       if (planned.sort === 'memory') all.sort(sorter(query));
       rows = all.slice(query.offset, query.offset + query.size + 1);
@@ -126,6 +135,7 @@ export async function executeQuery(
         .offset(query.offset)
         .limit(query.size + 1)
         .toArray();
+      if (!checked) examined = rows.length;
     }
 
     const more = rows.length > query.size;

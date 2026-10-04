@@ -10,6 +10,16 @@ import type { FixtureFiles } from './package-builder.js';
 
 export { consistencyProblems } from './consistency.js';
 export { stableId } from './ids.js';
+export {
+  BENCH_BUDGET_MS,
+  BENCH_CATEGORIES,
+  BENCH_QUERIES,
+  BENCH_ROWS,
+  benchEntity,
+  benchQueries,
+  benchRow,
+} from './bench.js';
+export type { BenchQuery } from './bench.js';
 export { schemaOf } from './schema-of.js';
 export { entityOf, referenceTo, relationOf } from './entity-builder.js';
 export type { FieldSpec } from './entity-builder.js';

@@ -30,11 +30,18 @@ const minimalTitle =
     readFileSync(resolve(repoRoot, 'e2e/targets.ts'), 'utf8'),
   )?.[1] ?? '';
 
-type SpecResult = { title: string; ok: boolean };
-type Suite = { specs?: { title: string; ok: boolean }[]; suites?: Suite[] };
+/**
+ * `ok` is what Playwright says of a spec, and it says it of a spec that was skipped too (after a
+ * failure in a serial group, nothing runs): `status` tells a spec that passed from one that did not run.
+ */
+type SpecResult = { title: string; ok: boolean; status: string | undefined };
+type Suite = {
+  specs?: { title: string; ok: boolean; tests?: { status: string }[] }[];
+  suites?: Suite[];
+};
 
 const collect = (suite: Suite): SpecResult[] => [
-  ...(suite.specs ?? []).map(({ title, ok }) => ({ title, ok })),
+  ...(suite.specs ?? []).map(({ title, ok, tests }) => ({ title, ok, status: tests?.[0]?.status })),
   ...(suite.suites ?? []).flatMap(collect),
 ];
 
@@ -68,7 +75,11 @@ async function serve(html: string): Promise<string> {
 }
 
 /** Runs the specs of `suiteName` on WebKit against `url`; pass/fail per spec title. */
-function runSpecs(suiteName: string, url: string): Promise<SpecResult[]> {
+function runSpecs(
+  suiteName: string,
+  url: string,
+  extraEnv: Record<string, string> = {},
+): Promise<SpecResult[]> {
   return new Promise((done, fail) => {
     const child = spawn(
       process.execPath,
@@ -93,6 +104,7 @@ function runSpecs(suiteName: string, url: string): Promise<SpecResult[]> {
           E2E_EXPECT_TIMEOUT: '2000',
           STUDIO_URL: url,
           RUNTIME_URL: url,
+          ...extraEnv,
         },
       },
     );
@@ -112,6 +124,10 @@ function runSpecs(suiteName: string, url: string): Promise<SpecResult[]> {
 
 const outcome = (results: SpecResult[], fragment: string): boolean | undefined =>
   results.find((r) => r.title.includes(fragment))?.ok;
+
+/** 'expected' (it passed), 'unexpected' (it failed) or 'skipped' (it did not run). */
+const status = (results: SpecResult[], fragment: string): string | undefined =>
+  results.find((r) => r.title.includes(fragment))?.status;
 
 describe.each([
   {
@@ -234,6 +250,35 @@ describe('e2e gate (REC-10): Runtime interactions', () => {
     expect(results).toHaveLength(12);
     expect(results.filter((result) => result.ok).map((result) => result.title)).toEqual([]);
   }, 180_000);
+});
+
+/**
+ * The data bench (lot 4) loads its own page: nothing is served for it, so the control sabotages
+ * the bench itself, through the switch the spec reads. The positive case is the real bench.
+ */
+describe('e2e gate (REC-10): data bench', () => {
+  // Only the origin of the page is needed (the spec answers every request for it itself, and an
+  // IndexedDB belongs to an origin): a server that is there, as for the other controls.
+
+  it('fails the spec of the index when no index is declared, and still passes the query that needs none', async () => {
+    const results = await runSpecs('Data bench', await serve('<!doctype html>'), {
+      E2E_BENCH_SABOTAGE: 'no-index',
+    });
+    expect(status(results, 'equality on an indexed field, first page')).toBe('unexpected');
+    // What a scan does right (it finds the record, it reads them all) must still pass, or the
+    // spec would be failing for another reason than the missing index. It has to have run: a spec
+    // that was skipped after a failure is not one that passed.
+    expect(status(results, 'control: equality on a field with no index')).toBe('expected');
+    expect(status(results, 'holds the records')).toBe('expected');
+  }, 240_000);
+
+  it('fails when the data base holds far fewer records than the bench says', async () => {
+    const results = await runSpecs('Data bench', await serve('<!doctype html>'), {
+      E2E_BENCH_SABOTAGE: 'few-rows',
+    });
+    // A bench on 100 records would meet every budget: only the count of records tells it apart.
+    expect(status(results, 'holds the records')).toBe('unexpected');
+  }, 240_000);
 });
 
 it('e2e gate: the titles of the fixtures were read from the E2E targets', () => {

@@ -1,9 +1,9 @@
 import { MAX_PAGE_SIZE } from '@acs/domain';
 import type { Draft, FilterCondition, QuerySpec, RecordEnvelope } from '@acs/domain';
 import { entityOf } from '@acs/testing';
-import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
+import { IDBFactory, IDBIndex, IDBKeyRange, IDBObjectStore } from 'fake-indexeddb';
 import fc from 'fast-check';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createRecordAccess } from '../repository/record-access.js';
 import { openEnvironment } from '../storage/database.js';
 import type { OpenEnvironment } from '../storage/database.js';
@@ -218,6 +218,72 @@ describe('the way into the rows: an index when one serves the filter (EF-BND-03)
 
   it('an empty list matches nothing', async () => {
     expect((await run(where(cond('qty', 'in', [])))).page.items).toEqual([]);
+  });
+});
+
+describe('how the records are fetched', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** What the browser was asked: the whole range at once, or a cursor walked a record at a time. */
+  async function requests(spec: Omit<QuerySpec, 'source'>) {
+    const getAll = [
+      vi.spyOn(IDBIndex.prototype, 'getAll'),
+      vi.spyOn(IDBObjectStore.prototype, 'getAll'),
+    ];
+    const cursor = [
+      vi.spyOn(IDBIndex.prototype, 'openCursor'),
+      vi.spyOn(IDBObjectStore.prototype, 'openCursor'),
+    ];
+    await run(spec);
+    return {
+      getAll: getAll.reduce((sum, spy) => sum + spy.mock.calls.length, 0),
+      cursor: cursor.reduce((sum, spy) => sum + spy.mock.calls.length, 0),
+    };
+  }
+
+  it('asks for a plain page in one request, with no cursor: a cursor costs a round trip per record', async () => {
+    expect(
+      await requests({
+        filter: { and: [{ field: 'category', op: 'eq', value: 'a' }] },
+        page: { size: 5 },
+      }),
+    ).toEqual({ getAll: 1, cursor: 0 });
+    expect(await requests({ sort: [{ field: 'qty', dir: 'asc' }], page: { size: 5 } })).toEqual({
+      getAll: 1,
+      cursor: 0,
+    });
+    expect(
+      await requests({
+        filter: {
+          and: [
+            { field: 'qty', op: 'gte', value: 10 },
+            { field: 'qty', op: 'lt', value: 20 },
+          ],
+        },
+      }),
+    ).toEqual({ getAll: 1, cursor: 0 });
+  });
+
+  it('walks a cursor when something has to be checked record by record', async () => {
+    const checked = await requests({
+      filter: {
+        and: [
+          { field: 'category', op: 'eq', value: 'a' },
+          { field: 'name', op: 'startsWith', value: 'item-1' },
+        ],
+      },
+    });
+    expect(checked.cursor).toBeGreaterThan(0);
+    const later = await requests({
+      sort: [{ field: 'qty', dir: 'asc' }],
+      page: {
+        size: 5,
+        cursor:
+          (await run({ sort: [{ field: 'qty', dir: 'asc' }], page: { size: 5 } })).page
+            .nextCursor ?? '',
+      },
+    });
+    expect(later.cursor).toBeGreaterThan(0);
   });
 });
 
