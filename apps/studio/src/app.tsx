@@ -1,12 +1,13 @@
-import { t } from './i18n.js';
+import type { StudioServices } from './services.js';
+import { Shell } from './ui/shell.js';
+import { StudioProvider } from './ui/services-context.js';
 import './app.css';
 
-/** Studio shell. Skeleton: the five zones and the command bus arrive in lot 5. */
-export function App() {
+/** The Studio: the services, and the shell that shows them. */
+export function App(props: { services: StudioServices }) {
   return (
-    <main className="studio-shell">
-      <h1>{t('studio.title')}</h1>
-      <p>{t('studio.subtitle')}</p>
-    </main>
+    <StudioProvider services={props.services}>
+      <Shell />
+    </StudioProvider>
   );
 }

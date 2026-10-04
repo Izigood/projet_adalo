@@ -7,5 +7,19 @@
   "command.pageRename": "Renommer la page",
   "command.pageRemove": "Supprimer la page",
   "command.pageMove": "Déplacer la page",
-  "catalog.copySuffix": " (copie)"
+  "catalog.copySuffix": " (copie)",
+  "zone.nav": "Navigation",
+  "zone.inspector": "Inspecteur",
+  "zone.panel": "Historique et enregistrement",
+  "history.undo": "Annuler",
+  "history.redo": "Rétablir",
+  "history.undoTitle": "Annuler : {label}",
+  "history.redoTitle": "Rétablir : {label}",
+  "save.unsaved": "Modifications non enregistrées",
+  "save.saving": "Enregistrement…",
+  "save.saved": "Enregistré",
+  "save.draft.one": "Projet invalide (1 problème) : brouillon conservé",
+  "save.draft.other": "Projet invalide ({count} problèmes) : brouillon conservé",
+  "save.conflict": "Conflit : un autre onglet a enregistré ce projet",
+  "save.error": "Échec de l'enregistrement : les modifications sont conservées"
 }

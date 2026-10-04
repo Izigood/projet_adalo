@@ -68,6 +68,14 @@ Le lot 5 demande un Studio dont toute modification passe par un bus de commandes
 
 **Le projet ouvert ne va pas à la corbeille** : `trash` le refuse (`CONSTRAINT_VIOLATION`, `id`), car un projet à la corbeille ne s'enregistre pas (étape 4) : sa sauvegarde automatique échouerait sans bruit pendant que l'on continue à le modifier. Il faut le fermer d'abord. L'archiver est permis, un projet archivé s'enregistre. La session dit pour cela quel projet est ouvert (`current`).
 
+**Interface : le socle** (étape 7a, `apps/studio/src/ui/`, `services.ts`) : `createStudioServices` construit une fois le magasin, le store, le bus, la session et le catalogue, et ne donne aux composants que ce qui se lit (la vue du projet, l'historique, le statut) ou se commande (le bus, la session, le catalogue) : le côté écriture du store reste dans `services.ts`, aucun composant ne peut donc modifier le projet autrement que par une commande. Les composants lisent une vue avec `useSyncExternalStore` (`useView`). `Shell` pose les cinq zones comme autant de repères (`header`, `nav`, `main`, `aside`, `section`, chacun nommé sauf `main`) dans une grille ; sous 900 px elles s'empilent, aucune ne disparaît. Les couleurs, espacements et rayons viennent des jetons du système de design.
+
+**Annuler / rétablir** : deux boutons, dont le titre dit quelle commande ils défont ou refont, et les raccourcis Ctrl ou Cmd + Z (annuler), Ctrl ou Cmd + Maj + Z et Ctrl + Y (rétablir). Un champ de saisie garde son propre annuler (celui du navigateur pour le texte) : le raccourci ne le détourne pas. La session enregistre aussi dès que la page passe en arrière-plan (`visibilitychange`, `pagehide`), ce qui réduit la perte des deux dernières secondes sans l'éliminer.
+
+**Statut de la sauvegarde** : un `<output aria-live="polite">` dit en français où en est le projet (non enregistré, en cours, enregistré, brouillon avec le nombre de problèmes, conflit, échec).
+
+**Libellés (ENF-10)** : `t(clé, paramètres)` remplace `{nom}` par le paramètre de ce nom ; un paramètre absent reste visible. Deux contrôles lisent le code, chacun avec son contrôle négatif : aucun composant n'écrit de texte lui-même (texte entre balises, chaîne entre accolades, `aria-label`, `placeholder`, `title`, `alt`, `label`, repérés par l'arbre syntaxique TypeScript), et aucun libellé de `fr.json` ne reste sans usage.
+
 ## Conséquences
 
 - Le Studio ne dépend pas d'IndexedDB : il parle au port, et les tests unitaires utilisent la version en mémoire.

@@ -3,20 +3,132 @@ body {
   background: var(--acs-color-surface);
   color: var(--acs-color-text);
   font-family: var(--acs-font-family-sans);
+  font-size: var(--acs-font-size-md);
   line-height: var(--acs-line-height-normal);
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  min-height: var(--acs-density-control-height);
+  padding: 0 var(--acs-space-3);
+  border: 1px solid var(--acs-color-border);
+  border-radius: var(--acs-radius-md);
+  background: var(--acs-color-surface);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: var(--acs-state-disabled-opacity);
+  cursor: default;
+}
+
+:focus-visible {
+  outline: var(--acs-state-focus-ring-width) solid var(--acs-color-focus);
+  outline-offset: 2px;
+}
+
+/* The five zones (ADR-0037): top bar, navigation, work area, inspector, panel. */
 .studio-shell {
+  display: grid;
   min-height: 100vh;
-  padding: var(--acs-space-5);
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr) minmax(12rem, 18rem);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'top top top'
+    'nav work inspector'
+    'panel panel panel';
 }
 
-.studio-shell h1 {
-  margin: 0 0 var(--acs-space-2);
-  font-size: var(--acs-font-size-xl);
+.zone {
+  box-sizing: border-box;
+  padding: var(--acs-space-3);
+  min-width: 0;
 }
 
-.studio-shell p {
+.zone-top {
+  grid-area: top;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acs-space-3);
+  border-bottom: 1px solid var(--acs-color-border);
+  background: var(--acs-color-surface-alt);
+}
+
+.zone-top h1 {
+  margin: 0;
+  font-size: var(--acs-font-size-lg);
+}
+
+.project-name {
+  color: var(--acs-color-text-muted);
+}
+
+.history-controls {
+  display: flex;
+  gap: var(--acs-space-2);
+  margin-inline-start: auto;
+}
+
+.save-badge {
+  color: var(--acs-color-text-muted);
+}
+
+.save-draft,
+.save-conflict,
+.save-error {
+  color: var(--acs-color-danger);
+  font-weight: var(--acs-font-weight-bold);
+}
+
+.zone-nav {
+  grid-area: nav;
+  border-inline-end: 1px solid var(--acs-color-border);
+}
+
+.zone-work {
+  grid-area: work;
+}
+
+.zone-work p {
   margin: 0;
   color: var(--acs-color-text-muted);
+}
+
+.zone-inspector {
+  grid-area: inspector;
+  border-inline-start: 1px solid var(--acs-color-border);
+}
+
+.zone-panel {
+  grid-area: panel;
+  border-top: 1px solid var(--acs-color-border);
+  background: var(--acs-color-surface-alt);
+}
+
+/* Below 900 px the zones stack: nothing is hidden, nothing scrolls sideways. */
+@media (max-width: 900px) {
+  .studio-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas:
+      'top'
+      'nav'
+      'work'
+      'inspector'
+      'panel';
+  }
+
+  .zone-nav,
+  .zone-inspector {
+    border-inline: 0;
+    border-bottom: 1px solid var(--acs-color-border);
+  }
 }
