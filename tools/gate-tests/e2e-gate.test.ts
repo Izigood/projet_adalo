@@ -318,6 +318,25 @@ describe('e2e gate (REC-10): data bench', () => {
   }, 300_000);
 });
 
+/**
+ * The engine scenario (lot 4) is played on the page of its own too: the control turns the
+ * protection of a referenced record into a cascade, and the spec of that protection must fail
+ * while what comes before it still passes (so that it fails for that reason and no other).
+ */
+describe('e2e gate (REC-10): data engine', () => {
+  it('fails the protection of a referenced record when `restrict` is a cascade', async () => {
+    const results = await runSpecs('Data engine', await serve('<!doctype html>'), {
+      E2E_ENGINE_SABOTAGE: 'no-restrict',
+    });
+    expect(status(results, 'loads the test data through the API')).toBe('expected');
+    expect(status(results, 'refuses a stale write')).toBe('expected');
+    expect(status(results, 'refuses to delete what is referenced')).toBe('unexpected');
+    const failure =
+      results.find((result) => result.title.includes('refuses to delete'))?.error ?? '';
+    expect(failure).toContain('REFERENCE_BLOCKED');
+  }, 240_000);
+});
+
 it('e2e gate: the titles of the fixtures were read from the E2E targets', () => {
   expect(minimalTitle).not.toBe('');
   expect(responsiveTitle).not.toBe('');
