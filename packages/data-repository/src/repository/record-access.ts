@@ -48,6 +48,14 @@ export type AccessOptions = {
 type Row = Record<string, unknown> & { id: string; _v: number };
 
 const DERIVED_PREFIX = '_k_';
+/** What the Repository writes in every record besides the id (dossier 6.4). */
+const ENVELOPE_KEYS: ReadonlySet<string> = new Set([
+  '_v',
+  '_createdAt',
+  '_updatedAt',
+  '_createdBy',
+  '_updatedBy',
+]);
 
 /** A record as the caller sees it: without the keys the Repository keeps for the indexes. */
 function visible<T extends RecordEnvelope>(row: Row): T {
@@ -121,7 +129,13 @@ export function createRecordAccess(
       input: Draft<T>,
       expectedVersion?: number,
     ): Promise<Result<T, DomainError>> {
-      const { id: given, ...fields } = input as Draft<T> & Record<string, unknown>;
+      const { id: given, ...sent } = input as Draft<T> & Record<string, unknown>;
+      // A record that was read and is saved back still carries its envelope. The envelope is the
+      // Repository's: what comes in is ignored, never trusted (the version to check is
+      // `expectedVersion`, the writer is the actor).
+      const fields = Object.fromEntries(
+        Object.entries(sent).filter(([key]) => !ENVELOPE_KEYS.has(key)),
+      );
       if (given !== undefined && (typeof given !== 'string' || !isUuidV7(given))) {
         return err(
           constraintError(entityKey, [

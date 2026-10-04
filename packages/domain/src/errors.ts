@@ -3,7 +3,8 @@
  * COMPONENT_INVALID (a component definition refused at registration, ADR-0034), and the three
  * codes of the local data layer (ADR-0036): QUERY_INVALID (a query the engine cannot run),
  * MIGRATION_BLOCKED (a data migration that needs a decision first) and STORAGE_UNAVAILABLE (no
- * usable IndexedDB).
+ * usable IndexedDB); and ENVIRONMENT_FORBIDDEN (test data that would leave the test data base,
+ * RG-04).
  */
 export const DOMAIN_ERROR_CODES = [
   'CONSTRAINT_VIOLATION',
@@ -19,6 +20,7 @@ export const DOMAIN_ERROR_CODES = [
   'QUERY_INVALID',
   'MIGRATION_BLOCKED',
   'STORAGE_UNAVAILABLE',
+  'ENVIRONMENT_FORBIDDEN',
 ] as const;
 
 export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[number];

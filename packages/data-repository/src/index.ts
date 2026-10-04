@@ -42,6 +42,10 @@ export type {
   OpenEnvironment,
   OpenOptions,
 } from './storage/database.js';
+export { exportEnvironment } from './environments/export.js';
+export type { DataExport, ExportOptions, ExportPurpose } from './environments/export.js';
+export { seedTestData } from './environments/test-data.js';
+export type { SeedReport, TestData } from './environments/test-data.js';
 export { migrateEnvironment, previewMigration } from './migrations/apply.js';
 export type { MigrationOptions, MigrationResult, MigrationStage } from './migrations/apply.js';
 export { restoreBackup } from './migrations/backup.js';

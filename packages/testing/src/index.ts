@@ -1,5 +1,6 @@
 import { completeFixture } from './fixtures/complete.js';
 import { CORRUPTED_FIXTURES } from './fixtures/corrupted.js';
+import { dataFixture, dataTestData } from './fixtures/data.js';
 import { interactiveFixture } from './fixtures/interactive.js';
 import { legacyV0ExpectedV1, legacyV0Fixture } from './fixtures/legacy-v0.js';
 import { minimalFixture } from './fixtures/minimal.js';
@@ -20,6 +21,8 @@ export type { FixtureDocuments, FixtureFiles } from './package-builder.js';
 export {
   CORRUPTED_FIXTURES,
   completeFixture,
+  dataFixture,
+  dataTestData,
   interactiveFixture,
   legacyV0ExpectedV1,
   legacyV0Fixture,
@@ -28,12 +31,14 @@ export {
   responsiveFixture,
 };
 export type { CorruptedCase, CorruptedCategory } from './fixtures/corrupted.js';
+export type { FixtureTestData } from './fixtures/data.js';
 
 /** Valid reference fixtures by name. Each call of a builder returns a fresh, modifiable copy. */
 export const VALID_FIXTURES: Readonly<Record<string, () => FixtureFiles>> = {
   minimal: minimalFixture,
   reference: referenceFixture,
   complete: completeFixture,
+  data: dataFixture,
   responsive: responsiveFixture,
   interactive: interactiveFixture,
 };

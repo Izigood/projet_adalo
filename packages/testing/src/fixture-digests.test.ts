@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   completeFixture,
+  dataFixture,
   legacyV0ExpectedV1,
   legacyV0Fixture,
   minimalFixture,
@@ -45,6 +46,7 @@ const PINNED: ReadonlyArray<readonly [string, () => unknown, string]> = [
     interactiveFixture,
     '835bc411dce5f1544742c9a8a67dc6ac7201b9115d037ab947b600384f11f293',
   ],
+  ['data', dataFixture, '86f8f108025ed3fe1324c11564d3531a9132ea967ce9409331de88fd3a84f597'],
   ['complete', completeFixture, '52228af105ddd25fb8da8068f477f77e94445ca959e618238c62046222393bd0'],
   [
     'legacy v0',

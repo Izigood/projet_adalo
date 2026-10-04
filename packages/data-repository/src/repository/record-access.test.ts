@@ -130,6 +130,33 @@ describe('save: the envelope (dossier 6.4)', () => {
     expect(second['payload']).toEqual({ items: [] });
   });
 
+  it('takes back a record that was read, envelope included, and ignores what an envelope says', async () => {
+    const { environment } = await setup('ada');
+    const bob = createRecordAccess(environment, { actor: () => 'bob' }).entity<Row>('ticket');
+    const ada = createRecordAccess(environment, { actor: () => 'ada' }).entity<Row>('ticket');
+    const read = value(await ada.save(ticket()));
+    const forged = {
+      ...read,
+      title: 'Edited',
+      _v: 99,
+      _createdBy: 'mallory',
+      _createdAt: '1999-01-01T00:00:00.000Z',
+      _updatedBy: 'mallory',
+    };
+    const saved = value(await bob.save(forged as Draft<Row>, read._v));
+    expect(saved).toMatchObject({
+      title: 'Edited',
+      _v: 2,
+      _createdBy: 'ada',
+      _createdAt: read._createdAt,
+      _updatedBy: 'bob',
+    });
+    // The version in the record is not the one that is checked: only `expectedVersion` is.
+    expect(failure(await bob.save({ ...saved, title: 'Again' } as Draft<Row>, 1)).code).toBe(
+      'VERSION_CONFLICT',
+    );
+  });
+
   it('replaces the record on update: version up, creation kept, update moved', async () => {
     const { tickets } = await setup();
     const first = value(await tickets.save(ticket()));
