@@ -316,6 +316,167 @@ describe('the automatic save (RG-13)', () => {
   });
 });
 
+/** A tab that leaves a recovery draft behind (an invalid project) and is closed without a word. */
+async function withDraft() {
+  const tab = await created();
+  tab.bus.execute(pageRename({ pageId: tab.state().initialPageId, key: 'Not A Key' }));
+  await tab.session.flush();
+  const drafted = structuredClone(toFiles(tab.state()));
+  const next = studio({ store: tab.store });
+  return { ...tab, drafted, next };
+}
+
+const draftOf = async (store: ProjectStore, id: Id) => {
+  const loaded = await store.loadDraft(id);
+  if (!loaded.ok) throw new Error(loaded.error.message);
+  return loaded.value;
+};
+
+describe('the recovery draft, offered when the project is opened again (RG-13)', () => {
+  it('opens the project as it was saved, and says there is a draft that is more recent', async () => {
+    const { store, next, id } = await withDraft();
+    const opened = await next.session.open(id);
+    expect(opened.ok && opened.value.draft).toMatchObject({ savedAt: AT });
+    expect(opened.ok && (opened.value.draft?.issues ?? 0)).toBeGreaterThanOrEqual(1);
+    expect(toFiles(next.state())).toEqual((await stored(store, id)).files);
+    expect(next.state().pages.byId[next.state().initialPageId]?.key).toBe('home');
+  });
+
+  it('takes the draft back on request: the work of the last session, not yet saved', async () => {
+    const { store, next, drafted, state, id } = await withDraft();
+    await next.session.open(id);
+    expect((await next.session.recover()).ok).toBe(true);
+    expect(next.state()).toEqual(state());
+    expect(toFiles(next.state())).toEqual(drafted);
+    expect(next.session.status.getState()).toEqual({ phase: 'unsaved' });
+    expect((await stored(store, id)).entry.revision).toBe(1);
+
+    next.clock.fire();
+    await next.session.flush();
+    expect(next.session.status.getState().phase).toBe('draft');
+    expect((await stored(store, id)).entry.revision).toBe(1);
+    expect(await draftOf(store, id)).not.toBeNull();
+
+    next.bus.execute(pageRename({ pageId: next.state().initialPageId, key: 'accueil' }));
+    await next.session.flush();
+    expect((await stored(store, id)).entry.revision).toBe(2);
+    expect(await draftOf(store, id)).toBeNull();
+    expect(next.session.status.getState()).toEqual({ phase: 'saved' });
+  });
+
+  it('throws the draft away on request, and does not offer it again', async () => {
+    const { store, next, id } = await withDraft();
+    await next.session.open(id);
+    expect((await next.session.dismissDraft()).ok).toBe(true);
+    expect(await draftOf(store, id)).toBeNull();
+    expect((await next.session.dismissDraft()).ok).toBe(true);
+    const again = studio({ store });
+    const opened = await again.session.open(id);
+    expect(opened.ok && opened.value.draft).toBeNull();
+    expect(again.state().pages.byId[again.state().initialPageId]?.key).toBe('home');
+  });
+
+  it.each([
+    ['older than the last save', '2026-10-03T10:00:00.000Z', false],
+    ['made at the same instant as the last save', AT, true],
+    ['more recent than the last save', '2026-10-05T10:00:00.000Z', true],
+  ])('a draft %s is %s offered', async (_label, savedAt, offered) => {
+    const { store, session, id } = await created();
+    const kept = await store.saveDraft({
+      projectId: id,
+      savedAt,
+      baseRevision: 1,
+      files: (await stored(store, id)).files,
+    });
+    expect(kept.ok).toBe(true);
+    const opened = await session.open(id);
+    expect(opened.ok && opened.value.draft !== null).toBe(offered);
+    if (!offered) expect(await draftOf(store, id)).toBeNull();
+  });
+
+  it('has nothing to take back when there is no draft, or when it was taken or the project was closed', async () => {
+    const { next, session, id } = await withDraft();
+    expect((await session.recover()).ok).toBe(false);
+    await next.session.open(id);
+    expect((await next.session.recover()).ok).toBe(true);
+    const twice = await next.session.recover();
+    expect(twice.ok ? '' : twice.error.details).toEqual({ field: 'draft' });
+
+    const other = studio({ store: next.store });
+    await other.session.open(id);
+    await other.session.close();
+    expect((await other.session.recover()).ok).toBe(false);
+  });
+
+  it('does not put the draft of one project into another: opening or creating drops the offer', async () => {
+    const { next, id } = await withDraft();
+    const second = await next.session.create({ key: 'OTHER', name: 'Autre' });
+    expect(second.ok).toBe(true);
+
+    // The draft is offered for the first project; a new project is created instead.
+    const opened = await next.session.open(id);
+    expect(opened.ok && opened.value.draft).not.toBeNull();
+    const third = await next.session.create({ key: 'THIRD', name: 'Troisième' });
+    expect(third.ok).toBe(true);
+    const refused = await next.session.recover();
+    expect(refused.ok).toBe(false);
+    expect(next.name()).toBe('Troisième');
+
+    // And a project with no draft of its own is opened instead.
+    await next.session.open(id);
+    const again = await next.session.open(second.ok ? second.value.id : id);
+    expect(again.ok && again.value.draft).toBeNull();
+    expect((await next.session.recover()).ok).toBe(false);
+    expect(next.name()).toBe('Autre');
+  });
+
+  it('keeps offering a draft it cannot read, so that it can be thrown away', async () => {
+    const { store, session, state, id } = await created();
+    await store.saveDraft({
+      projectId: id,
+      savedAt: '2026-10-05T10:00:00.000Z',
+      baseRevision: 1,
+      files: {},
+    });
+    const opened = await session.open(id);
+    expect(opened.ok && opened.value.draft).not.toBeNull();
+    const before = structuredClone(toFiles(state()));
+    const recovered = await session.recover();
+    expect(recovered.ok ? '' : recovered.error.code).toBe('MANIFEST_INVALID');
+    expect(toFiles(state())).toEqual(before);
+    expect((await session.dismissDraft()).ok).toBe(true);
+    expect(await draftOf(store, id)).toBeNull();
+  });
+
+  it('does not open the project when its draft cannot be read, and leaves the open one alone', async () => {
+    const real = createLocalProjectStore({ indexedDB: new IDBFactory(), IDBKeyRange });
+    const broken: ProjectStore = {
+      ...real,
+      loadDraft: () => Promise.resolve(err(domainError('STORAGE_UNAVAILABLE', 'disk'))),
+    };
+    const made = studio({ store: broken });
+    const first = await made.session.create({ key: 'AA', name: 'Premier' });
+    const second = await made.session.create({ key: 'BB', name: 'Second' });
+    if (!first.ok || !second.ok) throw new Error('not created');
+    const opened = await made.session.open(first.value.id);
+    expect(opened.ok ? '' : opened.error.code).toBe('STORAGE_UNAVAILABLE');
+    expect(made.name()).toBe('Second');
+  });
+
+  it('keeps the draft offered when it cannot be thrown away', async () => {
+    const { store, id } = await withDraft();
+    const stuck: ProjectStore = {
+      ...store,
+      discardDraft: () => Promise.resolve(err(domainError('STORAGE_UNAVAILABLE', 'disk'))),
+    };
+    const next = studio({ store: stuck });
+    await next.session.open(id);
+    const dismissed = await next.session.dismissDraft();
+    expect(dismissed.ok ? '' : dismissed.error.code).toBe('STORAGE_UNAVAILABLE');
+    expect((await next.session.recover()).ok).toBe(true);
+  });
+});
+
 describe('200 modifications, undo all, redo all, reload (critère de sortie du lot 5)', () => {
   it('gives the same project after a reload as before', async () => {
     const { store, session, bus, state, id } = await created();
