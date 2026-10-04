@@ -74,5 +74,6 @@ export type {
   RecordOperations,
   RecordUnitOfWork,
 } from './repository/record-access.js';
+export { STUDIO_DATABASE, createLocalProjectStore } from './studio-store/local-project-store.js';
 export { requestPersistence } from './storage/persistence.js';
 export type { PersistenceState, StorageManagerLike } from './storage/persistence.js';

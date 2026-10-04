@@ -20,7 +20,7 @@ Le lot 5 demande un Studio dont toute modification passe par un bus de commandes
 
 **Corbeille** : 30 jours (`TRASH_RETENTION_DAYS`), un projet est purgé quand `at − trashedAt ≥ 30 jours` (`isPastTrashRetention`). La purge se fait à l'ouverture du catalogue, sans tâche de fond.
 
-**Adaptateur** : il sera écrit dans `packages/data-repository` (module `studio-store`, base IndexedDB `acs-studio`), avec une version en mémoire pour les tests. Cela touche un paquet du lot 4 sans changer ses règles de dépendance : `apps/studio` peut déjà importer `data-repository` (§ 9.2).
+**Adaptateur** : il sera écrit dans `packages/data-repository` (module `studio-store`, base IndexedDB `acs-studio`), testé sur fake-indexeddb (voir l'étape 4 : pas de version en mémoire). Cela touche un paquet du lot 4 sans changer ses règles de dépendance : `apps/studio` peut déjà importer `data-repository` (§ 9.2).
 
 **Dépendances** : `zustand` 5 (MIT) et `immer` 11 (MIT) dans `apps/studio`. `react-aria-components` et `dnd-kit` ne sont pas utilisés au lot 5 (éléments HTML natifs accessibles) ; ils entrent au lot 7.
 
@@ -43,6 +43,12 @@ Le lot 5 demande un Studio dont toute modification passe par un bus de commandes
 **Commandes de pages** (étape 3b) : `CMD-PAGE-ADD` (une page avec un titre `info.title@1`, déclaré dans `dependencies.components` s'il ne l'est pas), `CMD-PAGE-RENAME` (clé et/ou route, la route suit dans l'index), `CMD-PAGE-REMOVE`, `CMD-PAGE-MOVE`. Les identifiants de la page et de son nœud sont dans la charge utile, tirés à la création de la commande : une commande rejouée fait la même chose. Une clé ou une route déjà prise est un `CONSTRAINT_VIOLATION` (`details.field`), un identifiant inconnu aussi. La page qui s'ouvre en premier ne peut pas être supprimée (`REFERENCE_BLOCKED`, `referencedBy: initialPageId`). Supprimer une page retire aussi sa route et les entrées de menu qui la visent, faute de commande pour éditer les menus avant le lot 7. Déplacer une page déplace sa route : l'ordre des pages est celui des routes, car `fromFiles` le relit ainsi.
 
 **Limite connue** : une page absente de la liste des routes (un paquet importé la rend possible, aucune commande ne la crée) est relue après les pages routées, triée par identifiant ; sa place dans `pages.order` n'est pas conservée au rechargement. Les tests de propriété (60 suites de 40 commandes au plus) tiennent le reste : l'état est celui que ses fichiers redonnent, le paquet passe les schémas, et annuler puis rétablir tout redonne les mêmes fichiers.
+
+**Adaptateur** (étape 4, `packages/data-repository/src/studio-store/`) : `createLocalProjectStore(source?)` implémente le port sur la base `acs-studio` (Dexie), avec trois tables : `projects` (la ligne du catalogue, index unique sur `key`, index sur `status`), `packages` (les fichiers) et `drafts` (un brouillon par projet). Lister le catalogue ne lit donc aucun paquet. Chaque opération est une transaction qui vérifie avant d'écrire : un refus ne laisse rien, et deux onglets ne peuvent ni gagner la même révision ni prendre la même clé (IndexedDB exécute l'une après l'autre les transactions qui écrivent les mêmes tables). La règle de l'ADR-0036 s'applique : dans une transaction, on n'attend que des requêtes IndexedDB.
+
+**Écart par rapport à ce qui était annoncé plus haut** : il n'y a pas de version en mémoire du port. Elle aurait dupliqué les règles et pu s'en écarter ; le Studio testera sur le vrai adaptateur, avec fake-indexeddb (déjà utilisé par `data-repository`, Apache-2.0).
+
+**Règles du stockage** : la clé d'un projet est unique, corbeille comprise, jusqu'à la purge ; un projet à la corbeille ne s'enregistre pas (`CONSTRAINT_VIOLATION`, `status`) ; une révision périmée est un `VERSION_CONFLICT` avec `expected` et `found` ; archiver, mettre à la corbeille ou restaurer ne change ni la révision ni la date de modification, et mettre à la corbeille ce qui y est déjà ne déplace pas la date ; la purge supprime la ligne, le paquet et le brouillon (un test lit la base elle-même, car `load` rend `null` dès que la ligne manque, même si le paquet est resté) ; sans IndexedDB chaque opération dit `STORAGE_UNAVAILABLE`, et l'échec n'est pas retenu : le magasin fonctionne dès qu'IndexedDB apparaît. Le catalogue ne garde que les champs de `CatalogSummary`, quoi que l'appelant passe avec.
 
 ## Conséquences
 
