@@ -251,6 +251,12 @@ importers:
       '@acs/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@acs/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@acs/project-schema':
+        specifier: workspace:*
+        version: link:../../packages/project-schema
       immer:
         specifier: ^11.1.21
         version: 11.1.21
@@ -264,6 +270,9 @@ importers:
         specifier: ^5.0.15
         version: 5.0.15(@types/react@19.3.0)(immer@11.1.21)(react@19.3.0)
     devDependencies:
+      '@acs/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0

@@ -28,6 +28,12 @@ Le lot 5 demande un Studio dont toute modification passe par un bus de commandes
 
 **Duplication** : nouveaux identifiants pour tout le paquet, nouvelle clé (suffixe numérique, RG-11) et nom suffixé « (copie) ».
 
+**État normalisé** (étape 2, `apps/studio/src/project/`) : `ProjectState` range chaque famille d'objets (entités, relations, rôles, requêtes, pages, thèmes, workflows) en `{ byId, order }`, plus les métadonnées, les routes, la page initiale et les menus du fichier d'index. Les fichiers que le Studio n'édite pas (médias, données de test, README) sont gardés tels quels dans `extraFiles`. `fromFiles` valide le paquet avec `validateFiles` puis lit ; il refuse un `project.json` qui nomme un fichier absent. `toFiles(fromFiles(fichiers))` redonne les mêmes fichiers : le test le tient pour les huit fixtures valides, sinon enregistrer changerait le projet. Les chemins de thèmes et de workflows sont recalculés (`themes/{id}.json`), seuls les quatre chemins d'entrée de `project.json` sont conservés. Une page absente de la liste des routes est gardée, après les autres, triée par identifiant.
+
+**Création** (EF-PRJ-01) : `createProject` assemble un paquet (métadonnées, thème par défaut fait des jetons du système de design, une page `home` avec un titre) et le fait passer par `fromFiles`, donc par les mêmes schémas qu'un paquet importé : une clé, un nom ou une langue invalides donnent un `MANIFEST_INVALID` avec le fichier et le pointeur JSON du champ fautif. Le Studio n'importe pas `packages/testing` dans son code : le paquet de départ est écrit dans le Studio.
+
+**Store** : un store Zustand (vanilla) coupé en deux côtés. `ProjectView` (`getState`, `subscribe`) est tout ce qu'un composant reçoit ; `ProjectWriter` (`replace`, `close`) n'ira qu'au bus de commandes (étape 3). `replace` fige le projet en profondeur (`freeze` d'Immer) : une modification en place lève une erreur.
+
 ## Conséquences
 
 - Le Studio ne dépend pas d'IndexedDB : il parle au port, et les tests unitaires utilisent la version en mémoire.
