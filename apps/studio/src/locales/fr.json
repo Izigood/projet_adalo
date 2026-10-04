@@ -2,5 +2,9 @@
   "studio.title": "App Canvas Studio",
   "studio.subtitle": "Studio prêt : aucun projet ouvert.",
   "project.defaultTheme": "Thème par défaut",
-  "command.projectUpdate": "Modifier le projet"
+  "command.projectUpdate": "Modifier le projet",
+  "command.pageAdd": "Ajouter une page",
+  "command.pageRename": "Renommer la page",
+  "command.pageRemove": "Supprimer la page",
+  "command.pageMove": "Déplacer la page"
 }

@@ -40,6 +40,10 @@ Le lot 5 demande un Studio dont toute modification passe par un bus de commandes
 
 **Un projet peut devenir invalide** : une commande n'applique pas les schémas (une clé de page mal formée est acceptée) ; c'est la validation structurelle de l'autosave (RG-13) qui décide d'écrire le projet ou de garder un brouillon de récupération. Les commandes refusent en revanche ce qui n'a pas de sens (identifiant inconnu, doublon de clé).
 
+**Commandes de pages** (étape 3b) : `CMD-PAGE-ADD` (une page avec un titre `info.title@1`, déclaré dans `dependencies.components` s'il ne l'est pas), `CMD-PAGE-RENAME` (clé et/ou route, la route suit dans l'index), `CMD-PAGE-REMOVE`, `CMD-PAGE-MOVE`. Les identifiants de la page et de son nœud sont dans la charge utile, tirés à la création de la commande : une commande rejouée fait la même chose. Une clé ou une route déjà prise est un `CONSTRAINT_VIOLATION` (`details.field`), un identifiant inconnu aussi. La page qui s'ouvre en premier ne peut pas être supprimée (`REFERENCE_BLOCKED`, `referencedBy: initialPageId`). Supprimer une page retire aussi sa route et les entrées de menu qui la visent, faute de commande pour éditer les menus avant le lot 7. Déplacer une page déplace sa route : l'ordre des pages est celui des routes, car `fromFiles` le relit ainsi.
+
+**Limite connue** : une page absente de la liste des routes (un paquet importé la rend possible, aucune commande ne la crée) est relue après les pages routées, triée par identifiant ; sa place dans `pages.order` n'est pas conservée au rechargement. Les tests de propriété (60 suites de 40 commandes au plus) tiennent le reste : l'état est celui que ses fichiers redonnent, le paquet passe les schémas, et annuler puis rétablir tout redonne les mêmes fichiers.
+
 ## Conséquences
 
 - Le Studio ne dépend pas d'IndexedDB : il parle au port, et les tests unitaires utilisent la version en mémoire.

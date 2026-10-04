@@ -6,7 +6,7 @@ import { createStore } from 'zustand/vanilla';
 import type { ProjectState } from '../project/project-state.js';
 import type { ProjectView, ProjectWriter } from '../project/project-store.js';
 import type { CommandHandler, CommandTable, DesignCommand, StudioListener } from './command.js';
-import { PROJECT_COMMANDS } from './project-commands.js';
+import { STANDARD_COMMANDS } from './table.js';
 
 enablePatches();
 
@@ -59,7 +59,7 @@ export function createCommandBus(
   store: { readonly view: ProjectView; readonly writer: ProjectWriter },
   options: BusOptions = {},
 ): CommandBus {
-  const commands = options.commands ?? PROJECT_COMMANDS;
+  const commands = options.commands ?? STANDARD_COMMANDS;
   const limit = options.limit ?? HISTORY_LIMIT;
   const undoStack: Entry[] = [];
   const redoStack: Entry[] = [];
