@@ -6,5 +6,6 @@
   "command.pageAdd": "Ajouter une page",
   "command.pageRename": "Renommer la page",
   "command.pageRemove": "Supprimer la page",
-  "command.pageMove": "Déplacer la page"
+  "command.pageMove": "Déplacer la page",
+  "catalog.copySuffix": " (copie)"
 }
