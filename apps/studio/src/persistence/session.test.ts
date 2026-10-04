@@ -83,6 +83,22 @@ describe('creating and opening a project (EF-PRJ-01)', () => {
     expect(session.status.getState()).toEqual({ phase: 'saved' });
   });
 
+  it('says which project is open: the one created or opened, and none once it is closed', async () => {
+    const { session, store, id } = await created();
+    expect(session.current()).toBe(id);
+    const other = await session.create({ key: 'OTHER', name: 'Autre' });
+    expect(session.current()).toBe(other.ok ? other.value.id : null);
+    expect(session.current()).not.toBe(id);
+    await session.open(id);
+    expect(session.current()).toBe(id);
+    const failed = await session.open('01920000-0000-7000-8000-00000000dead' as Id);
+    expect(failed.ok).toBe(false);
+    expect(session.current()).toBe(id);
+    await session.close();
+    expect(session.current()).toBeNull();
+    expect(await store.list()).toMatchObject({ ok: true });
+  });
+
   it('refuses what cannot be a project, and a key that is taken, and opens nothing', async () => {
     const { session, bus, state } = await created();
     const before = structuredClone(toFiles(state()));

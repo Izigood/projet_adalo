@@ -52,6 +52,8 @@ export type ProjectSession = {
   recover(): Promise<Result<void, DomainError>>;
   /** Throws the recovery draft away; the open project stays as it was saved. */
   dismissDraft(): Promise<Result<void, DomainError>>;
+  /** The project that is open, if any. */
+  current(): Id | null;
   /** Saves now what waits for the delay. */
   flush(): Promise<void>;
   /** Saves what waits, then closes the project. */
@@ -169,6 +171,7 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
   return {
     status: status.view,
     flush,
+    current: () => opened?.id ?? null,
 
     async create(input) {
       await flush();
