@@ -34,6 +34,12 @@ Le lot 5 demande un Studio dont toute modification passe par un bus de commandes
 
 **Store** : un store Zustand (vanilla) coupé en deux côtés. `ProjectView` (`getState`, `subscribe`) est tout ce qu'un composant reçoit ; `ProjectWriter` (`replace`, `close`) n'ira qu'au bus de commandes (étape 3). `replace` fige le projet en profondeur (`freeze` d'Immer) : une modification en place lève une erreur.
 
+**Bus de commandes** (étape 3, `apps/studio/src/commands/`) : une commande est `{ type, payload, label }` (§ 7.2) ; son gestionnaire reçoit un brouillon Immer du projet et ne renvoie rien, ou l'erreur qui l'empêche (alors rien n'est gardé). Le bus exécute avec `produceWithPatches`, garde les patchs et leur inverse, et `undo` applique l'inverse : aucune commande n'écrit de `undo` (REC-02). Une commande qui ne change rien n'entre pas dans l'historique. L'historique garde 500 commandes (`HISTORY_LIMIT`), efface ce qu'on peut rétablir à chaque nouvelle commande, et repart de zéro quand un projet est chargé ou fermé. Le bus ne se construit qu'avec le côté écriture du store.
+
+**Événement** : `EVT-PROJECT-CHANGED` avec sa cause (`loaded`, `command`, `undo`, `redo`, `closed`) est émis une fois le projet et l'historique à jour ; l'autosave (étape 5) et le validateur incrémental l'écouteront. `EVT-PROJECT-SAVED` viendra avec l'autosave. Un écouteur qui lève une erreur arrête les suivants pour cet événement, sans défaire le changement.
+
+**Un projet peut devenir invalide** : une commande n'applique pas les schémas (une clé de page mal formée est acceptée) ; c'est la validation structurelle de l'autosave (RG-13) qui décide d'écrire le projet ou de garder un brouillon de récupération. Les commandes refusent en revanche ce qui n'a pas de sens (identifiant inconnu, doublon de clé).
+
 ## Conséquences
 
 - Le Studio ne dépend pas d'IndexedDB : il parle au port, et les tests unitaires utilisent la version en mémoire.

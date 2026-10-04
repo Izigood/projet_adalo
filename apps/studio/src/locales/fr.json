@@ -1,5 +1,6 @@
 {
   "studio.title": "App Canvas Studio",
   "studio.subtitle": "Studio prêt : aucun projet ouvert.",
-  "project.defaultTheme": "Thème par défaut"
+  "project.defaultTheme": "Thème par défaut",
+  "command.projectUpdate": "Modifier le projet"
 }
