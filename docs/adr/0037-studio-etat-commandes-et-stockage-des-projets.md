@@ -1,0 +1,35 @@
+# ADR-0037 — Studio : état, commandes et stockage des projets
+
+- **Statut** : acceptée (complétée au fil du lot 5)
+- **Date** : 2026-10-04
+- **Source** : dossier § 7.2, § 9.2, § 10.1 (lot 5), EF-PRJ-01, EF-PRJ-02, EF-UI-06, RG-13, REC-02 ; décision D-01 ; ADR-0011, ADR-0019, ADR-0023, ADR-0036
+
+## Contexte
+
+Le lot 5 demande un Studio dont toute modification passe par un bus de commandes annulables, un store normalisé, une sauvegarde automatique et un catalogue de projets. Trois points ne sont pas tranchés par le dossier :
+
+- **ARC-STU-01 à 03 et la section 8.1 du cahier des charges (les 5 zones) ne sont pas dans le dépôt** : le dossier ne les cite que par leur identifiant.
+- **Où vit un projet.** Dexie est confiné à `data-repository` (règle `dexie-only-in-data-repository`) et `localStorage` est réservé aux préférences d'interface (`CLAUDE.md`). Le Studio ne peut donc écrire ses projets ni dans l'un ni dans l'autre directement.
+- **Ce que livre ce lot comme commandes.** Le schéma (lot 6) et le canvas (lot 7) n'existent pas encore, alors que EF-UI-06 vise « toutes les commandes de conception ».
+
+## Décision
+
+**Lecture de ARC-STU-01 à 03** (hypothèse écrite, à corriger si le texte du cahier des charges la contredit) : ARC-STU-01, état normalisé ; ARC-STU-02, commandes annulables ; ARC-STU-03, événements et sauvegarde automatique (§ 7.2 : les `EVT-*` sont consommés par le validateur et l'autosave). **Les cinq zones** : barre supérieure, navigation et catalogue à gauche, zone centrale de travail, inspecteur à droite, panneau inférieur (validation et historique).
+
+**Port `ProjectStore`** dans `packages/domain` (`project-store.ts`), sans dépendance, comme le Repository : catalogue (`list`), projet (`load`, `create`, `save` avec verrou de révision), états `active`, `archived`, `trashed` (`setStatus`), purge de la corbeille (`purgeTrash`) et brouillon de récupération (`saveDraft`, `loadDraft`, `discardDraft`). Les erreurs sont des `Result` avec les codes existants : clé déjà prise `CONSTRAINT_VIOLATION`, révision périmée `VERSION_CONFLICT`, pas d'IndexedDB `STORAGE_UNAVAILABLE`. Aucun code n'est ajouté au catalogue du § 7.7. L'horloge est un paramètre (`at`) pour que la corbeille soit testable. Le résumé du catalogue (`CatalogSummary`) est fourni par l'appelant avec les fichiers ; le Studio le calcule d'un seul endroit à partir de l'état pour qu'il ne dérive pas.
+
+**Corbeille** : 30 jours (`TRASH_RETENTION_DAYS`), un projet est purgé quand `at − trashedAt ≥ 30 jours` (`isPastTrashRetention`). La purge se fait à l'ouverture du catalogue, sans tâche de fond.
+
+**Adaptateur** : il sera écrit dans `packages/data-repository` (module `studio-store`, base IndexedDB `acs-studio`), avec une version en mémoire pour les tests. Cela touche un paquet du lot 4 sans changer ses règles de dépendance : `apps/studio` peut déjà importer `data-repository` (§ 9.2).
+
+**Dépendances** : `zustand` 5 (MIT) et `immer` 11 (MIT) dans `apps/studio`. `react-aria-components` et `dnd-kit` ne sont pas utilisés au lot 5 (éléments HTML natifs accessibles) ; ils entrent au lot 7.
+
+**Commandes livrées** : métadonnées du projet (`CMD-PROJECT-UPDATE`) et pages (`CMD-PAGE-ADD`, `-RENAME`, `-REMOVE`, `-MOVE`). Le critère de sortie (200 modifications) est joué avec elles ; les commandes de schéma et de canvas viennent aux lots 6 et 7. **Historique** : 500 commandes au plus (le minimum exigé est 200) ; il n'est pas conservé au rechargement, seul l'état l'est.
+
+**Duplication** : nouveaux identifiants pour tout le paquet, nouvelle clé (suffixe numérique, RG-11) et nom suffixé « (copie) ».
+
+## Conséquences
+
+- Le Studio ne dépend pas d'IndexedDB : il parle au port, et les tests unitaires utilisent la version en mémoire.
+- Le lot 6 ajoute ses commandes au même bus sans rien changer au port.
+- Les étapes suivantes complètent cet ADR (état, bus, autosave, catalogue, interface, E2E).

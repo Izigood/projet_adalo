@@ -45,3 +45,4 @@ Une décision d'architecture = un fichier `NNNN-titre.md` (dossier § 9.3). Ne j
 | [0034](0034-contrat-de-composant-et-registre.md)                     | Contrat de composant, registre et plugins non chargés                          | acceptée                                                     |
 | [0035](0035-axe-core-en-dependance-de-test.md)                       | axe-core en dépendance de test (MPL-2.0)                                       | acceptée (lève l'écart n° 2 du lot 0)                        |
 | [0036](0036-donnees-locales-repository-et-stockage.md)               | Données locales : port Repository, stockage et relations                       | acceptée (complétée au fil du lot 4)                         |
+| [0037](0037-studio-etat-commandes-et-stockage-des-projets.md)        | Studio : état, commandes et stockage des projets                               | acceptée (complétée au fil du lot 5)                         |

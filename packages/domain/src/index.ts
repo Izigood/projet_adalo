@@ -31,6 +31,16 @@ export type {
   SortDirection,
   UnitOfWork,
 } from './repository.js';
+export { CATALOG_STATUSES, TRASH_RETENTION_DAYS, isPastTrashRetention } from './project-store.js';
+export type {
+  CatalogEntry,
+  CatalogStatus,
+  CatalogSummary,
+  PackageFiles,
+  ProjectStore,
+  RecoveryDraft,
+  StoredProject,
+} from './project-store.js';
 export { UUID_V7_PATTERN, asId, isUuidV7 } from './id.js';
 export type { Id } from './id.js';
 export { createUuidV7Generator, newId } from './uuid-v7.js';
