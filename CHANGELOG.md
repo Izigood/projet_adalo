@@ -2,6 +2,52 @@
 
 Format inspiré de Keep a Changelog. Un lot terminé = une entrée et un tag `vX.Y.0` (dossier § 9.6).
 
+## [0.4.0] — Lot 4 « Données locales » — 2026-10-04
+
+Tag proposé : **`v0.4.0`** (non posé : à créer après validation du lot). Exigences : EF-DAT-02, EF-DAT-03, EF-DAT-06, EF-BND-03 (moteur), RG-02, RG-04.
+
+### Ajouté
+
+- **Port `Repository`** (`packages/domain`) : dépôt lié à une entité, `DataStore`, `UnitOfWork`, `QuerySpec`, pages, observateur ; codes d'erreur `QUERY_INVALID`, `MIGRATION_BLOCKED`, `STORAGE_UNAVAILABLE`, `ENVIRONMENT_FORBIDDEN`.
+- **`data-repository`** (Dexie, confiné à ce paquet) : 13 types de champs, décimaux exacts (big.js), contraintes, verrou optimiste (`VERSION_CONFLICT`), relations 1-1, 1-N et N-N avec `onDelete` (`REFERENCE_BLOCKED`), transactions annulables, moteur de requêtes (planificateur sur index, recherche sans accents, agrégats exacts, curseur), `storage.persist()`.
+- **Migrations de données** : plan (destructif ou non, renommage par identifiant), conversions, application atomique avec approbation du destructif, sauvegarde horodatée avec empreinte SHA-256, restauration, purge.
+- **Environnements** : bases de test et de production séparées, chargement de données de test par l'API (réservé au test), export.
+- **Tests partagés** : fixture `data` (empreinte épinglée), constructeurs d'entités, banc de volume (`benchQueries`).
+- **ADR** : 0036 (dépôt et stockage, règle des transactions, migrations, banc).
+
+### Critères de sortie du lot 4
+
+| Critère                                                          | Preuve                                                                                                                                                                 |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fixture à 2 entités liées et données de test par l'API (AC-01)   | `environments/acceptance.test.ts` (8 tests) et `e2e/data-engine.spec.ts` (Chromium, Firefox, WebKit).                                                                  |
+| `VERSION_CONFLICT` et `REFERENCE_BLOCKED` testés                 | Les mêmes, plus `data-store.test.ts` et `relations.test.ts`.                                                                                                           |
+| Requête indexée sur 10 000 lignes en moins de 100 ms             | `query/volume.test.ts` (11) et `e2e/data-bench.spec.ts` : Chromium 0,8 à 7 ms, Firefox 1 à 7 ms ; sans index ≈ 130 ms. WebKit sous Windows : 600 lignes, sans horloge. |
+| Migrations tenues à 90 % des lignes et 85 % des branches (§ 9.4) | Gate de couverture étendue à `packages/data-repository/src/migrations/**`.                                                                                             |
+| Contrôles négatifs (REC-10)                                      | `e2e-gate.test.ts` : `no-index`, `few-rows`, `slow` (banc) et `no-restrict` (moteur).                                                                                  |
+| `pnpm verify` vert                                               | 1365 tests unitaires, 132 tests de gates, 198 tests E2E, 14 contrôles de la gate E2E (exécution avant le commit ccedfc0).                                              |
+
+### Ce que la revue et les E2E ont trouvé (et qui est corrigé)
+
+- **Index composé qui perd des enregistrements (revue)** : l'égalité sur le premier champ d'un index `[a, b]` perdait les enregistrements sans `b`. Le préfixe n'est utilisé que si tous les champs de l'index sont présents.
+- **Expressions régulières qui se recouvrent (revue)** : `^([a-z]|[a-m])*$` explosait ; les alternatives sont comparées comme ensembles de caractères.
+- **Champs nommés comme `Object.prototype` (revue)** : toute lecture passe par `own()`.
+- **Sauvegardes (revue)** : restauration limitée à l'environnement propre, réutilisation seulement pour les mêmes données, purge avec la base.
+- **Banc qui ne prouvait rien (revue)** : une requête qui ignorait son filtre restait verte ; chaque requête dit maintenant si les enregistrements rendus sont les bons, et le budget a un contrôle négatif.
+- **Filtre compteur (banc navigateur)** : il forçait des curseurs ; il n'est posé que s'il le faut.
+- **Plage vide (test de propriété)** : `< a ET > a` faisait lever IndexedDB ; cas permanent.
+- **Gate E2E vacue** : des specs ignorées comptaient comme réussies ; la gate lit le vrai statut.
+
+### Écarts par rapport au dossier
+
+1. **ADR-0036** seul ; aucune dépendance hors licences autorisées (Dexie, fake-indexeddb : Apache-2.0 ; big.js : MIT ; esbuild : MIT, développement).
+2. **Quatre codes d'erreur ajoutés** au catalogue du § 7.7.
+3. **Banc WebKit sous Windows** : 600 lignes et pas d'horloge (15,6 ms par requête IndexedDB mesurés) ; les 10 000 lignes sont jouées sous Chromium et Firefox.
+
+### Dette et points ouverts
+
+- **Règle des transactions** : le mécanisme de la fermeture précoce n'est pas élucidé (Dexie, fake-indexeddb, `await` natif) ; la règle est vérifiée dans les trois navigateurs, pas expliquée.
+- **Toujours ouverts depuis les lots précédents** : captures `win32` seulement, pas de contrôle des licences, osv-scanner non exécuté, pas de CI, Node 26 non LTS.
+
 ## [0.3.0] — Lot 3 « Registre et composants de base » — 2026-10-03
 
 Tag proposé : **`v0.3.0`** (non posé : à créer après validation du lot). Exigences : EF-CMP-01, EF-CMP-03, EF-UI-04 (rendu).
