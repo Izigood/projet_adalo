@@ -62,6 +62,12 @@ export type BenchQuery = {
   };
   /** The query is held to the budget. The control that reads everything is not: it shows the cost. */
   readonly budgeted: boolean;
+  /**
+   * Whether the records that came back are the right ones: they satisfy the filter, in the order
+   * asked for. A count of records proves little: a query that ignores its filter and returns the
+   * first 50 records has the right count.
+   */
+  readonly valid: (items: readonly Record<string, unknown>[]) => boolean;
 };
 
 /**
@@ -96,6 +102,7 @@ export function benchQueries(rows: number): readonly BenchQuery[] {
       },
       expect: { access: 'eq', index: 'category', ...page(50, perCategory) },
       budgeted: true,
+      valid: (items) => items.every((item) => item['category'] === 'c07'),
     },
     {
       name: 'every record of a category',
@@ -105,6 +112,7 @@ export function benchQueries(rows: number): readonly BenchQuery[] {
       },
       expect: { access: 'eq', index: 'category', ...page(500, perCategory) },
       budgeted: true,
+      valid: (items) => items.every((item) => item['category'] === 'c07'),
     },
     {
       name: 'a range of an indexed integer',
@@ -118,12 +126,15 @@ export function benchQueries(rows: number): readonly BenchQuery[] {
       },
       expect: { access: 'range', index: 'qty', items: width, examined: width },
       budgeted: true,
+      valid: (items) =>
+        items.every((item) => Number(item['qty']) >= low && Number(item['qty']) < low + width),
     },
     {
       name: 'a page sorted by an indexed required field',
       spec: { sort: [{ field: 'qty', dir: 'asc' }], page: { size: 50 } },
       expect: { access: 'order', index: 'qty', ...page(50, rows) },
       budgeted: true,
+      valid: (items) => items.every((item, position) => item['qty'] === position),
     },
     {
       name: 'a decimal range, through its sort key',
@@ -133,6 +144,10 @@ export function benchQueries(rows: number): readonly BenchQuery[] {
       },
       expect: { access: 'range', index: '_k_price', ...page(100, dear) },
       budgeted: true,
+      valid: (items) =>
+        items.every(
+          (item) => item['price'] !== undefined && Number(item['price']) > Number(priceFloor),
+        ),
     },
     {
       name: 'equality on both fields of a compound index',
@@ -146,6 +161,7 @@ export function benchQueries(rows: number): readonly BenchQuery[] {
       },
       expect: { access: 'eq', index: '[category+qty]', items: 1, examined: 1 },
       budgeted: true,
+      valid: (items) => items.every((item) => item['category'] === 'c07' && item['qty'] === 107),
     },
     {
       name: 'a count over a category',
@@ -162,12 +178,14 @@ export function benchQueries(rows: number): readonly BenchQuery[] {
         aggregates: { n: perCategory },
       },
       budgeted: true,
+      valid: () => true,
     },
     {
       name: 'control: equality on a field with no index reads every record',
       spec: { filter: { and: [{ field: 'name', op: 'eq', value: middleName }] } },
       expect: { access: 'scan', items: 1, examined: rows },
       budgeted: false,
+      valid: (items) => items.every((item) => item['name'] === middleName),
     },
   ];
 }

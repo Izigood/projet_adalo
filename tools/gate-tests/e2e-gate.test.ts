@@ -34,14 +34,32 @@ const minimalTitle =
  * `ok` is what Playwright says of a spec, and it says it of a spec that was skipped too (after a
  * failure in a serial group, nothing runs): `status` tells a spec that passed from one that did not run.
  */
-type SpecResult = { title: string; ok: boolean; status: string | undefined };
+type SpecResult = {
+  title: string;
+  ok: boolean;
+  status: string | undefined;
+  /** What the failing assertion said, without the colours of the terminal. */
+  error: string;
+};
 type Suite = {
-  specs?: { title: string; ok: boolean; tests?: { status: string }[] }[];
+  specs?: {
+    title: string;
+    ok: boolean;
+    tests?: { status: string; results?: { error?: { message?: string } }[] }[];
+  }[];
   suites?: Suite[];
 };
 
+// eslint-disable-next-line no-control-regex -- the escape character of the colours Playwright writes
+const colours = /\u001b\[[0-9;]*m/g;
+
 const collect = (suite: Suite): SpecResult[] => [
-  ...(suite.specs ?? []).map(({ title, ok, tests }) => ({ title, ok, status: tests?.[0]?.status })),
+  ...(suite.specs ?? []).map(({ title, ok, tests }) => ({
+    title,
+    ok,
+    status: tests?.[0]?.status,
+    error: (tests?.[0]?.results?.[0]?.error?.message ?? '').replace(colours, ''),
+  })),
   ...(suite.suites ?? []).flatMap(collect),
 ];
 
@@ -79,6 +97,7 @@ function runSpecs(
   suiteName: string,
   url: string,
   extraEnv: Record<string, string> = {},
+  project = 'webkit',
 ): Promise<SpecResult[]> {
   return new Promise((done, fail) => {
     const child = spawn(
@@ -89,7 +108,7 @@ function runSpecs(
         // The control only needs a page that makes the specs fail, which does not depend on the
         // engine. WebKit is used because it closes instantly, whereas Chromium and Firefox can take
         // tens of seconds to close on a loaded machine, and every failing spec restarts a browser.
-        '--project=webkit',
+        `--project=${project}`,
         '--grep',
         suiteName,
         '--reporter=json',
@@ -279,6 +298,24 @@ describe('e2e gate (REC-10): data bench', () => {
     // A bench on 100 records would meet every budget: only the count of records tells it apart.
     expect(status(results, 'holds the records')).toBe('unexpected');
   }, 240_000);
+
+  it('fails the spec of a query on the clock alone, when what is timed takes too long', async () => {
+    // The WebKit of the other controls does not hold the clock on Windows (see the spec): this one
+    // runs on Chromium, where the 10 000 records and the budget of 100 ms are the real ones.
+    const results = await runSpecs(
+      'Data bench',
+      await serve('<!doctype html>'),
+      { E2E_BENCH_SABOTAGE: 'slow' },
+      'chromium',
+    );
+    const query = 'equality on an indexed field, first page';
+    expect(status(results, 'holds the records')).toBe('expected');
+    expect(status(results, query)).toBe('unexpected');
+    // It is the budget that fails, not the plan, the count or the records: those are right.
+    const failure = results.find((result) => result.title.includes(query))?.error ?? '';
+    expect(failure).toContain('toBeLessThan');
+    expect(failure).not.toContain('toBe(');
+  }, 300_000);
 });
 
 it('e2e gate: the titles of the fixtures were read from the E2E targets', () => {

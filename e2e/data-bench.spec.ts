@@ -20,15 +20,18 @@ import { RUNTIME_URL } from './targets.js';
  * clock.
  *
  * E2E_BENCH_SABOTAGE makes the negative controls of the gate (tools/gate-tests): `no-index`
- * declares no index (and runs only the query that needs one and the control that does not, once:\n * on a slow IndexedDB every other query would be a full scan), `few-rows` loads 100 records\n * instead of the scale of the run.
+ * declares no index (and runs only the query that needs one and the control that does not, once:
+ * on a slow IndexedDB every other query would be a full scan), `few-rows` loads 100 records
+ * instead of the scale of the run, `slow` adds 150 ms to what is timed: the clock is then the only
+ * thing that can fail the spec of a query.
  */
 const REDUCED_ROWS = 600;
 const FIRST = benchQueries(BENCH_ROWS)[0]?.name ?? '';
 const CONTROL = benchQueries(BENCH_ROWS).find((query) => !query.budgeted)?.name ?? '';
-/** What the 
-o-index sabotage runs. */
-const UNINDEXED_RUN = [FIRST, CONTROL];
 const sabotage = process.env['E2E_BENCH_SABOTAGE'];
+/** The queries a sabotage runs (all of them when there is none): every other would only cost time. */
+const ONLY: readonly string[] | undefined =
+  sabotage === 'no-index' ? [FIRST, CONTROL] : sabotage === 'slow' ? [FIRST] : undefined;
 
 async function serveBench(page: Page): Promise<void> {
   const script = await benchBundle();
@@ -57,10 +60,12 @@ test.describe('Data bench', () => {
     scale = slowTimer ? REDUCED_ROWS : BENCH_ROWS;
     const options: BenchOptions =
       sabotage === 'no-index'
-        ? { rows: scale, indexed: false, runs: 1, queries: UNINDEXED_RUN }
-        : sabotage === 'few-rows'
-          ? { rows: 100 }
-          : { rows: scale };
+        ? { rows: scale, indexed: false, runs: 1, queries: ONLY ?? [] }
+        : sabotage === 'slow'
+          ? { rows: scale, delayMs: 150, runs: 1, queries: ONLY ?? [] }
+          : sabotage === 'few-rows'
+            ? { rows: 100 }
+            : { rows: scale };
     // The test timeout (120 s) covers this hook.
     const page = await browser.newPage();
     try {
@@ -89,10 +94,7 @@ test.describe('Data bench', () => {
     test(`${query.name}`, () => {
       const wanted = benchQueries(scale).find((item) => item.name === query.name);
       const found = result.queries.find((item) => item.name === query.name);
-      test.skip(
-        sabotage === 'no-index' && !UNINDEXED_RUN.includes(query.name),
-        'not run by this control',
-      );
+      test.skip(ONLY !== undefined && !ONLY.includes(query.name), 'not run by this control');
       expect(wanted, 'the bench has this query').toBeDefined();
       expect(found, 'the page ran this query').toBeDefined();
       if (wanted === undefined || found === undefined) return;
@@ -105,6 +107,8 @@ test.describe('Data bench', () => {
       expect(found.plan.access).toBe(wanted.expect.access);
       if (wanted.expect.index !== undefined) expect(found.plan.index).toBe(wanted.expect.index);
       expect(found.items).toBe(wanted.expect.items);
+      // The right records, not only the right number of them.
+      expect(found.valid, 'the records that came back satisfy the query').toBe(true);
       // An index reads about what it returns; the control, with none, reads everything.
       expect(found.examined).toBeLessThanOrEqual(wanted.expect.examined);
       if (wanted.expect.aggregates !== undefined) {

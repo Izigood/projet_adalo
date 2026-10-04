@@ -27,6 +27,8 @@ export type BenchOptions = {
   readonly runs?: number;
   /** Only these queries, by name (default: all). */
   readonly queries?: readonly string[];
+  /** Milliseconds added to what is timed: the negative control of the budget. */
+  readonly delayMs?: number;
 };
 
 export type BenchQueryResult = {
@@ -35,6 +37,8 @@ export type BenchQueryResult = {
   readonly examined: number;
   readonly items: number;
   readonly aggregates: Readonly<Record<string, unknown>> | undefined;
+  /** The records that came back are the right ones (they satisfy the filter, in order). */
+  readonly valid: boolean;
   /** One duration per run, in milliseconds; the first is the cold one. */
   readonly durations: readonly number[];
 };
@@ -99,6 +103,9 @@ async function run(options: BenchOptions): Promise<BenchResult> {
       for (let n = 0; n < runs; n += 1) {
         const at = performance.now();
         last = await runQuery(environment, { source: 'item', ...query.spec });
+        if (options.delayMs !== undefined) {
+          await new Promise((resolve) => setTimeout(resolve, options.delayMs));
+        }
         durations.push(performance.now() - at);
       }
       if (last === undefined || !last.ok) throw new Error(`${query.name}: the query failed`);
@@ -108,6 +115,7 @@ async function run(options: BenchOptions): Promise<BenchResult> {
         examined: last.value.examined,
         items: last.value.page.items.length,
         aggregates: last.value.page.aggregates,
+        valid: query.valid(last.value.page.items),
         durations,
       });
     }
