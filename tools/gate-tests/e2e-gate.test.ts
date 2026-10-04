@@ -1,9 +1,9 @@
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { dirname, resolve } from 'node:path';
+import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -45,7 +45,10 @@ type Suite = {
   specs?: {
     title: string;
     ok: boolean;
-    tests?: { status: string; results?: { error?: { message?: string } }[] }[];
+    tests?: {
+      status: string;
+      results?: { error?: { message?: string }; errors?: { message?: string }[] }[];
+    }[];
   }[];
   suites?: Suite[];
 };
@@ -58,7 +61,10 @@ const collect = (suite: Suite): SpecResult[] => [
     title,
     ok,
     status: tests?.[0]?.status,
-    error: (tests?.[0]?.results?.[0]?.error?.message ?? '').replace(colours, ''),
+    error: (tests?.[0]?.results?.[0]?.errors ?? [tests?.[0]?.results?.[0]?.error ?? {}])
+      .map((error) => error.message ?? '')
+      .join('\n')
+      .replace(colours, ''),
   })),
   ...(suite.suites ?? []).flatMap(collect),
 ];
@@ -335,6 +341,114 @@ describe('e2e gate (REC-10): data engine', () => {
       results.find((result) => result.title.includes('refuses to delete'))?.error ?? '';
     expect(failure).toContain('REFERENCE_BLOCKED');
   }, 240_000);
+});
+
+/**
+ * The Studio project spec (lot 5): the exit criterion played in a real browser, and the
+ * accessibility of the Studio. Two of the controls serve the real build and break one thing of the
+ * browser (E2E_STUDIO_SABOTAGE), never the Studio: what the spec measures must then fail, and what
+ * does not depend on it must still pass, or it would be failing for another reason.
+ */
+const studioBuild = resolve(repoRoot, 'apps/studio/dist');
+const CONTENT_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.svg': 'image/svg+xml',
+  '.map': 'application/json',
+};
+
+/** Serves the built Studio from a port of its own (an IndexedDB belongs to an origin). */
+async function serveStudioBuild(): Promise<string> {
+  if (!existsSync(resolve(studioBuild, 'index.html'))) {
+    throw new Error('the Studio is not built: run `pnpm build` first');
+  }
+  server = createServer((request, response) => {
+    const path = new URL(request.url ?? '/', 'http://localhost').pathname;
+    const file = resolve(studioBuild, path === '/' ? 'index.html' : path.slice(1));
+    if (!file.startsWith(studioBuild) || !existsSync(file)) {
+      response.writeHead(404).end();
+      return;
+    }
+    response.writeHead(200, {
+      'content-type': CONTENT_TYPES[extname(file)] ?? 'application/octet-stream',
+    });
+    response.end(readFileSync(file));
+  });
+  await new Promise<void>((ready) => server?.listen(0, '127.0.0.1', ready));
+  return `http://127.0.0.1:${(server?.address() as AddressInfo).port}`;
+}
+
+describe('e2e gate (REC-10): Studio project', () => {
+  const criterion = 'Studio project';
+  // The facts of the spec, by the words it gives them (e2e/studio-project.spec.ts, FACTS): the spec
+  // judges all of them in one test, so the error says which ones failed.
+  const fact = {
+    created: 'the project is created and opened',
+    modifications: 'the 200 modifications are 200 commands of the history',
+    keyboardUndo: 'Ctrl+Z undoes half of the modifications',
+    undoAll: 'undoing all 200 leaves the page of welcome alone, and a valid project',
+    keyboardRedo: 'Ctrl+Shift+Z and Ctrl+Y redo half of the modifications',
+    redoAll: 'redoing all 200 gives the same pages in the same order',
+    stored: 'IndexedDB holds the same package after undo and redo as before',
+    reloaded: 'the project is the same after a reload',
+  } as const;
+
+  /** The facts that the error of the spec names, and those it does not. */
+  const failedFacts = (results: SpecResult[]) => {
+    const error = results[0]?.error ?? '';
+    return Object.entries(fact)
+      .filter(([, words]) => error.includes(words))
+      .map(([name]) => name);
+  };
+
+  it('fails the criterion against a page that is not the Studio', async () => {
+    const results = await runSpecs(
+      criterion,
+      await serve(studioPage(studio['studio.title'] ?? '', '')),
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0]?.status).toBe('unexpected');
+  }, 300_000);
+
+  it('fails what is kept, and nothing else, when the data base is a new one at each load', async () => {
+    const results = await runSpecs(criterion, await serveStudioBuild(), {
+      E2E_STUDIO_SABOTAGE: 'forgetful-storage',
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0]?.status).toBe('unexpected');
+    // What the Studio does in the page does not depend on what is kept: it still passes.
+    // What is kept, and found again after a reload, does: it fails.
+    expect(failedFacts(results), results[0]?.error).toEqual(['stored', 'reloaded']);
+  }, 400_000);
+
+  it('fails the shortcuts, and nothing else, when the keys never reach the Studio', async () => {
+    const results = await runSpecs(criterion, await serveStudioBuild(), {
+      E2E_STUDIO_SABOTAGE: 'no-keyboard',
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0]?.status).toBe('unexpected');
+    // The buttons still undo and redo, and the project is still kept and found again.
+    expect(failedFacts(results), results[0]?.error).toEqual([
+      'keyboardUndo',
+      'undoAll',
+      'keyboardRedo',
+    ]);
+  }, 400_000);
+});
+describe('e2e gate (REC-10): Studio accessibility', () => {
+  it('fails on contrast alone, in the light theme, when every text is grey', async () => {
+    const results = await runSpecs('Studio accessibility', await serveStudioBuild(), {
+      E2E_STUDIO_SABOTAGE: 'low-contrast',
+    });
+    for (const screen of ['the catalogue', 'an open project']) {
+      const title = `on ${screen} at 1280 px, light theme`;
+      expect(status(results, title)).toBe('unexpected');
+      // It is the contrast that is found, not a page that did not load.
+      expect(results.find((r) => r.title.includes(title))?.error).toContain('color-contrast');
+    }
+  }, 300_000);
 });
 
 it('e2e gate: the titles of the fixtures were read from the E2E targets', () => {

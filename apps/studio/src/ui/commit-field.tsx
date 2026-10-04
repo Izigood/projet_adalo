@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 
 /**
@@ -19,11 +19,16 @@ export function CommitField(props: {
   const id = useId();
   const [draft, setDraft] = useState(value);
   const [error, setError] = useState<string | null>(null);
+  const [seen, setSeen] = useState(value);
 
-  useEffect(() => {
+  // The field follows the project in the very render in which the value changes. An effect would
+  // do it after that render, and the field would show the old value for a moment (the previous
+  // page, before an undo is reflected): a key typed in that moment was added to the old value.
+  if (value !== seen) {
+    setSeen(value);
     setDraft(value);
     setError(null);
-  }, [value]);
+  }
 
   function apply() {
     const next = draft.trim();
