@@ -1,4 +1,4 @@
-import { err, ok } from '@acs/domain';
+import { domainError, err, ok } from '@acs/domain';
 import type { DomainError, JsonValue, Page, QuerySpec, Result } from '@acs/domain';
 import type { Collection, Table } from 'dexie';
 import type { OpenEnvironment } from '../storage/database.js';
@@ -10,6 +10,7 @@ import { describePlan, planQuery } from './plan.js';
 import type { Access, Planned, QueryPlan } from './plan.js';
 import { resolveQuery } from './spec.js';
 import type { ResolvedQuery } from './spec.js';
+import { own } from '../values/own.js';
 
 export type QueryRow = Record<string, unknown> & { id: string };
 
@@ -70,7 +71,7 @@ function present(row: QueryRow, projection: readonly string[] | undefined): Quer
 function sorter(query: ResolvedQuery): (a: QueryRow, b: QueryRow) => number {
   return (a, b) => {
     for (const { info, dir } of query.sort) {
-      const order = compareWithAbsent(info, a[info.key], b[info.key]);
+      const order = compareWithAbsent(info, own(a, info.key), own(b, info.key));
       if (order !== 0) return dir === 'asc' ? order : -order;
     }
     const byId = a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
@@ -89,7 +90,7 @@ export function prepareQuery(
 ): Result<PreparedQuery, DomainError> {
   const layout = environment.layout.entities.get(spec.source);
   if (layout === undefined) {
-    return err(storageError(new RangeError(`the project has no entity ${spec.source}`)));
+    return err(domainError('QUERY_INVALID', `the project has no entity ${spec.source}`));
   }
   const resolved = resolveQuery(layout, spec);
   if (!resolved.ok) return resolved;

@@ -3,6 +3,7 @@ import type { DomainError, JsonValue, Result } from '@acs/domain';
 import type { EntityLayout } from '../storage/layout.js';
 import { checkFieldValue } from '../values/field-value.js';
 import type { ValueRule } from '../values/field-value.js';
+import { own } from '../values/own.js';
 
 export type Violation = {
   readonly field: string;
@@ -42,7 +43,7 @@ export function normaliseRecord(
   }
 
   for (const info of layout.fields.values()) {
-    let value = input[info.key];
+    let value = own(input, info.key);
     if (value === undefined && info.definition.default !== undefined) {
       value = structuredClone(info.definition.default);
     }

@@ -24,18 +24,50 @@ function quantifierAt(
   return { max, length: text.length };
 }
 
-/** Whether one alternative is the same as, or the start of, another: they overlap. */
-function overlap(alternatives: readonly string[]): boolean {
-  return alternatives.some((a, i) =>
-    alternatives.some((b, j) => i !== j && (a === b || a.startsWith(b))),
-  );
-}
+/** A repeat of at most this many times costs 2^10 at worst on alternatives that overlap: tolerated. */
+const SAFE_REPEAT = 10;
+
+/** One escape (`\d`), one class (`[a-z]`), or one character (`.` too): a set of characters. */
+const SINGLE_ATOM = /^(?:\\.|\[(?:[^\]\\]|\\.)*\]|[^()|*+?{}[\]\\^$])$/su;
+/** Plain characters only, none that means something to a regular expression. */
+const LITERAL = /^[^\\[\](){}|*+?.^$]+$/u;
 
 /**
+ * Whether two alternatives of a group can match the same text. Alternatives that are each one
+ * set of characters are compared as sets, over every character of the Basic Multilingual Plane
+ * (`[a-z]|[a-m]` and `\w|\d` overlap, `[A-Z]|\d` does not). Longer alternatives are only accepted
+ * as plain literals that start with different characters (`foo|bar`); anything else counts as
+ * overlapping, because it cannot be told cheaply.
+ */
+function overlappingAlternatives(alternatives: readonly string[]): boolean {
+  if (alternatives.length < 2) return false;
+  if (alternatives.every((alternative) => SINGLE_ATOM.test(alternative))) {
+    const matchers = alternatives.map((alternative) => new RegExp(`^(?:${alternative})$`, 'su'));
+    for (let code = 0; code <= 0xffff; code += 1) {
+      if (code >= 0xd800 && code <= 0xdfff) continue;
+      const character = String.fromCharCode(code);
+      let hits = 0;
+      for (const matcher of matchers) {
+        if (matcher.test(character)) hits += 1;
+        if (hits > 1) return true;
+      }
+    }
+    return false;
+  }
+  const starts = new Set<string>();
+  for (const alternative of alternatives) {
+    const first = [...alternative][0];
+    if (first === undefined || !LITERAL.test(alternative) || starts.has(first)) return true;
+    starts.add(first);
+  }
+  return false;
+}
+/**
  * Looks for the shapes of a pattern that make a backtracking engine take exponential time on a
- * hostile input: a repeat inside a repeat that can both go on without end, `(a|a)*` and
- * `(a|ab)*` (alternatives that overlap under a repeat), nested repeats whose product is large,
- * and what hides the search from this analysis (back-references, look-behind).
+ * hostile input: a repeat inside a repeat that can both go on without end, `(a|a)*`,
+ * `(a|ab)*`, `([a-z]|[a-m])*` and `(\w|\d)*` (alternatives that overlap, as text or as sets of
+ * characters, under a repeat of more than 10), nested repeats whose product is large, and what
+ * hides the search from this analysis (back-references, look-behind).
  *
  * This is a heuristic, not a proof, and it errs on the side of refusing: `^([a-z]+-)+[a-z]+$` is
  * refused although it is linear. It does not see polynomial cases such as `.*.*.*x`; those are
@@ -102,7 +134,11 @@ function unsafeShape(pattern: string): string | undefined {
         }
         if (product > MAX_NESTED_REPEAT) return 'nested repeats multiply too many times';
       }
-      if (alternatives !== undefined && quantifier.max === Infinity && overlap(alternatives)) {
+      if (
+        alternatives !== undefined &&
+        quantifier.max > SAFE_REPEAT &&
+        overlappingAlternatives(alternatives)
+      ) {
         return 'overlapping alternatives under a repeat can take exponential time';
       }
       frame.current += pattern.slice(index, index + quantifier.length);

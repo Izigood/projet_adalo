@@ -123,7 +123,12 @@ export function planQuery(query: ResolvedQuery): Planned {
           access: { kind: 'eq', index, key: keys },
           consumed: leading,
         });
-      } else if (leading.length > 0) {
+      } else if (
+        leading.length > 0 &&
+        // A record that lacks one of the fields of the index is not in it: a prefix finds every
+        // record of the leading fields only if the others are in every record.
+        index.fields.every((field) => layout.fields.get(field)?.required === true)
+      ) {
         candidates.push({
           score: 60 + 5 * leading.length,
           access: {

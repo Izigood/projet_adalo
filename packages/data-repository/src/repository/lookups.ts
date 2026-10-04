@@ -1,6 +1,7 @@
 import type { IndexableType } from 'dexie';
 import type { OpenEnvironment } from '../storage/database.js';
 import type { EntityLayout } from '../storage/layout.js';
+import { own } from '../values/own.js';
 
 /**
  * What a `save` has to look up before it writes. They are worked out here, with no I/O, and run
@@ -33,7 +34,7 @@ export function uniqueLookups(
   const lookups: Lookup[] = [];
   for (const index of layout.indexes) {
     if (!index.unique || index.multiEntry) continue;
-    const key = index.keyPaths.map((path) => record[path]);
+    const key = index.keyPaths.map((path) => own(record, path));
     if (key.some((part) => part === undefined || part === null)) continue;
     lookups.push({
       kind: 'unique',
@@ -61,7 +62,7 @@ export function referenceLookups(
     environment.layout.foreignKeys.map((fk) => [`${fk.holder}.${fk.field}`, fk]),
   );
   for (const info of layout.fields.values()) {
-    const value = record[info.key];
+    const value = own(record, info.key);
     if (value === undefined || value === null) continue;
     const foreign = keys.get(`${layout.key}.${info.key}`);
     const isFile = info.type === 'file' || info.type === 'image';

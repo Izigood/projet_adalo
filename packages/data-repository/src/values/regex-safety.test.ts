@@ -18,6 +18,15 @@ const HOSTILE = [
   '(a)\\1',
   '(?<n>a)\\k<n>',
   '(?<=a)b',
+  // Alternatives that overlap, as sets of characters and not as text (found by the review):
+  '^([a-z]|[a-m])*$',
+  '^(\\w|\\d)*$',
+  '^(\\w|\\d){1,30}$',
+  '^(\\d|\\d\\d)+$',
+  '^(.|[a-z])+$',
+  '^(?:[a-c]|[b-d]|x)*$',
+  // Different first characters, and still overlapping: the second can match what the first matches.
+  '^(a|\\wa)+$',
 ];
 
 /** Patterns a designer really writes. */
@@ -31,6 +40,12 @@ const ORDINARY = [
   '^(?:[A-Z]|\\d)+$',
   '^\\(?\\d+\\)?$',
   '^[a-z\\]]+$',
+  // Alternatives that cannot match the same character: safe to repeat.
+  '^(?:[a-z]|[0-9]|-)*$',
+  '^(?:a|b)+$',
+  '^(?:foo|bar)+$',
+  '^(?:\\d|[a-f])+$',
+  '^(?:\\w|-){1,60}$',
 ];
 
 describe('safeRegExp', () => {
@@ -58,13 +73,30 @@ describe('safeRegExp', () => {
   });
 
   it('what it accepts stays fast on a hostile input of the longest length of a string field', () => {
-    const hostile = `${'a'.repeat(254)}!`;
+    // The inputs that make alternatives backtrack: letters, digits, dashes, then a character that fails.
+    const hostile = ['a', '1', '-', 'f', 'foo'].map((unit) => `${unit.repeat(250)}!`);
     const started = performance.now();
     for (const pattern of ORDINARY) {
       const result = safeRegExp(pattern);
-      if (result.ok) result.value.test(hostile);
+      expect(result.ok, pattern).toBe(true);
+      if (result.ok) for (const input of hostile) result.value.test(input);
     }
-    expect(performance.now() - started).toBeLessThan(250);
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
+  it('what it refuses really is slow: the review measured 0.4 to 0.5 s at 26 characters, doubling at each', () => {
+    // Not a test of the clock (it would be flaky) but of the claim: the pattern the review found
+    // is refused, and it is the one that takes the time. Ten characters is instant, so the
+    // exponent can be seen without waiting for it.
+    const slow = /^(\w|\d)*$/u;
+    const time = (n: number): number => {
+      const started = performance.now();
+      slow.test(`${'1'.repeat(n)}!`);
+      return performance.now() - started;
+    };
+    time(10);
+    expect(time(24)).toBeGreaterThan(time(14));
+    expect(safeRegExp('^(\\w|\\d)*$').ok).toBe(false);
   });
 
   it('never throws, whatever the text (property)', () => {

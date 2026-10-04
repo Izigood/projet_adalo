@@ -180,6 +180,21 @@ describe('a schema that cannot be stored', () => {
     );
   });
 
+  it('refuses a decimal whose scale is larger than its precision: no value could be stored in it', () => {
+    const bad = problemsOf([
+      entity('item', { amount: { type: 'decimal', options: { precision: 2, scale: 5 } } }),
+    ]);
+    expect(bad.join()).toContain(
+      'item.amount: the scale of a decimal cannot be larger than its precision',
+    );
+    // As large is fine: 0.5 in a decimal of one digit, all of it after the point.
+    expect(
+      problemsOf([
+        entity('item', { amount: { type: 'decimal', options: { precision: 3, scale: 3 } } }),
+      ]),
+    ).toEqual([]);
+  });
+
   it('refuses a unique multiple choice and a field declared twice', () => {
     expect(
       problemsOf([

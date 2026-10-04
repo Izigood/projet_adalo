@@ -76,7 +76,11 @@ function checkString(
   pattern: string | undefined,
 ): Result<JsonValue, ValueIssue> {
   if (typeof value !== 'string') return fail('type', 'a string is expected');
-  if (lengthOf(value) > maxLength) return fail('maxLength', `at most ${maxLength} characters`);
+  // A character is at most two code units: a text of more than twice the limit is over it, and
+  // is said so without first spreading a huge string into an array.
+  if (value.length > 2 * maxLength || lengthOf(value) > maxLength) {
+    return fail('maxLength', `at most ${maxLength} characters`);
+  }
   if (pattern !== undefined) {
     let compiled = patterns.get(pattern);
     if (compiled === undefined) {

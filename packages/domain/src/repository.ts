@@ -13,7 +13,7 @@ export type FieldKey = string;
 /** An expression in source form; evaluated by the expression engine, not by the Repository. */
 export type ExpressionSource = string;
 
-/** The five operators an index can serve (dossier 7.1). */
+/** The eight operators of a structured filter, those an index can serve (dossier 7.1). */
 export const FILTER_OPERATORS = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'in', 'startsWith'] as const;
 export const SORT_DIRECTIONS = ['asc', 'desc'] as const;
 export const AGGREGATE_FUNCTIONS = ['count', 'sum', 'avg', 'min', 'max'] as const;

@@ -10,6 +10,7 @@ import { backupName, createBackup, exists, matchesBackup, registerBackup } from 
 import { conversionFor } from './convert.js';
 import { planMigration } from './plan.js';
 import type { MigrationPlan } from './plan.js';
+import { own } from '../values/own.js';
 
 /** Where a migration is, for whoever shows it: the application, or a test that interrupts it. */
 export type MigrationStage = 'planned' | 'backup' | 'started' | 'upgrade' | 'done';
@@ -110,7 +111,8 @@ function dataWork(plan: MigrationPlan, layout: DataLayout): Work[] {
         if (op.default !== undefined) {
           const value = op.default;
           work.transforms.push((row) => {
-            if (row[op.field] === undefined) row[op.field] = stored(work.layout, op.field, value);
+            if (own(row, op.field) === undefined)
+              row[op.field] = stored(work.layout, op.field, value);
           });
         }
         break;
@@ -119,7 +121,8 @@ function dataWork(plan: MigrationPlan, layout: DataLayout): Work[] {
         const work = of(op.entity);
         const value = op.default;
         work.transforms.push((row) => {
-          if (row[op.field] !== undefined && row[op.field] !== null) return;
+          const present = own(row, op.field);
+          if (present !== undefined && present !== null) return;
           if (value === undefined) {
             throw new MigrationFailure(
               `${op.entity}.${op.field}: a record has no value and the field has no default`,
@@ -137,7 +140,7 @@ function dataWork(plan: MigrationPlan, layout: DataLayout): Work[] {
         break;
       case 'renameField':
         of(op.entity).transforms.push((row) => {
-          if (op.from in row) {
+          if (Object.hasOwn(row, op.from)) {
             row[op.to] = row[op.from];
             delete row[op.from];
           }
@@ -147,7 +150,7 @@ function dataWork(plan: MigrationPlan, layout: DataLayout): Work[] {
         const conversion = conversionFor(op.from, op.to);
         if (conversion === undefined) break;
         of(op.entity).transforms.push((row) => {
-          const value = row[op.field];
+          const value = own(row, op.field);
           if (value === undefined || value === null) return;
           const converted = conversion.convert(value as JsonValue);
           if (!converted.ok) {

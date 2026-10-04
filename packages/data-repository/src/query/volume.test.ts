@@ -73,7 +73,7 @@ describe(`${BENCH_ROWS} records`, () => {
 
   it.each(BENCH_QUERIES.filter((query) => query.budgeted))(
     'go through the index, and a page comes in under the budget: $name',
-    async ({ spec, expect: wanted }) => {
+    async ({ spec, expect: wanted, valid }) => {
       const durations: number[] = [];
       for (let run = 0; run < RUNS; run += 1) {
         const started = performance.now();
@@ -83,6 +83,8 @@ describe(`${BENCH_ROWS} records`, () => {
         expect(result.value.plan.access).toBe(wanted.access);
         if (wanted.index !== undefined) expect(result.value.plan.index).toBe(wanted.index);
         expect(result.value.page.items).toHaveLength(wanted.items);
+        // The right records, not just the right number of them.
+        expect(valid(result.value.page.items)).toBe(true);
         expect(result.value.examined).toBeLessThanOrEqual(wanted.examined);
         if (wanted.aggregates !== undefined) {
           expect(result.value.page.aggregates).toEqual(wanted.aggregates);
@@ -107,6 +109,7 @@ describe(`${BENCH_ROWS} records`, () => {
     expect(result.value.plan.access).toBe('scan');
     expect(result.value.examined).toBe(BENCH_ROWS);
     expect(result.value.page.items).toHaveLength(1);
+    expect(control.valid(result.value.page.items)).toBe(true);
   });
 });
 

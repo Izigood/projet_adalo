@@ -198,6 +198,66 @@ describe('what can be added', () => {
     });
   });
 
+  it('adds, requires and converts fields that are named like members of Object.prototype', async () => {
+    // A record that lacks `constructor` or `toString` does not have the function of every object.
+    const w = await seeded();
+    const fieldsOf = (extra: Fields): Fields => ({ ...TICKET, ...extra });
+    const own = (row: Record<string, unknown>, key: string) =>
+      Object.hasOwn(row, key) ? row[key] : undefined;
+
+    // Added: one with a default, the others optional and with no value at all.
+    value(
+      await w.migrate(
+        layoutOf([
+          ticket(
+            fieldsOf({
+              constructor: { type: 'string', required: true, default: 'dflt' },
+              toString: { type: 'boolean' },
+              valueOf: { type: 'string' },
+            }),
+          ),
+        ]),
+      ),
+    );
+    let rows = await raw(w.source, 'e_ticket');
+    expect(rows).toHaveLength(3);
+    expect(rows.every((row) => own(row, 'constructor') === 'dflt')).toBe(true);
+    expect(rows.every((row) => own(row, 'toString') === undefined)).toBe(true);
+
+    // Made required, with a default, over records that have no value for it.
+    value(
+      await w.migrate(
+        layoutOf([
+          ticket(
+            fieldsOf({
+              constructor: { type: 'string', required: true, default: 'dflt' },
+              toString: { type: 'boolean', required: true, default: true },
+              valueOf: { type: 'string' },
+            }),
+          ),
+        ]),
+      ),
+    );
+    rows = await raw(w.source, 'e_ticket');
+    expect(rows.every((row) => own(row, 'toString') === true)).toBe(true);
+
+    // Converted, over records that have no value for it: nothing is converted, nothing fails.
+    value(
+      await w.migrate(
+        layoutOf([
+          ticket(
+            fieldsOf({
+              constructor: { type: 'string', required: true, default: 'dflt' },
+              toString: { type: 'boolean', required: true, default: true },
+              valueOf: { type: 'text' },
+            }),
+          ),
+        ]),
+      ),
+    );
+    rows = await raw(w.source, 'e_ticket');
+    expect(rows.every((row) => own(row, 'valueOf') === undefined)).toBe(true);
+  });
   it('keeps the envelope of the records: a migration is not an edit', async () => {
     const w = await seeded();
     await w.migrate(layoutOf([ticket({ ...TICKET, size: { type: 'integer', default: 1 } })]));

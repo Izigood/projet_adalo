@@ -5,6 +5,7 @@ import { decimalSortKey } from '../values/decimal.js';
 import type { DecimalFormat } from '../values/decimal.js';
 import { junctionStoreName, pointedEntity, resolveRelations } from './relation-layout.js';
 import type { ForeignKeyInfo, OnDelete, RelationLayout } from './relation-layout.js';
+import { own } from '../values/own.js';
 
 /** The stores every data base has besides the entities (dossier 6.4); `_outbox` stays empty at the MVP. */
 const FIXED_STORES: readonly StoreSpec[] = [
@@ -104,6 +105,12 @@ function entityLayout(
   const fields = new Map<string, FieldInfo>();
   for (const field of entity.fields) {
     if (field.key === 'id') problems.push(`${entity.key}.id: id is the key of every record`);
+    // The schema allows it, and no value could ever be stored: 2 digits of which 5 are decimals.
+    if (field.type === 'decimal' && field.options.scale > field.options.precision) {
+      problems.push(
+        `${entity.key}.${field.key}: the scale of a decimal cannot be larger than its precision`,
+      );
+    }
     if (fields.has(field.key)) problems.push(`${entity.key}.${field.key}: declared twice`);
     fields.set(field.key, fieldInfo(field));
   }
@@ -220,7 +227,7 @@ export function deriveKeys(
 ): Record<string, JsonValue> {
   const keys: Record<string, JsonValue> = {};
   for (const info of layout.fields.values()) {
-    const value = record[info.key];
+    const value = own(record, info.key);
     if (info.derived === undefined || value === null || value === undefined) continue;
     if (info.derived.kind === 'boolean') keys[info.derived.keyField] = value === true ? 1 : 0;
     else if (info.derived.format !== undefined && typeof value === 'string') {

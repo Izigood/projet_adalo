@@ -1,6 +1,7 @@
 import type { FilterOperator, JsonValue } from '@acs/domain';
 import type { FieldInfo } from '../storage/layout.js';
 import { compareDecimals } from '../values/decimal.js';
+import { own } from '../values/own.js';
 
 /** A condition of a filter, checked against its field and ready to run. */
 export type ResolvedCondition = {
@@ -41,7 +42,7 @@ export function matches(
   condition: ResolvedCondition,
 ): boolean {
   const { info, op, value } = condition;
-  const actual = row[info.key];
+  const actual = own(row, info.key);
   const absent = actual === undefined || actual === null;
   if (absent) return op === 'ne';
   const held = Array.isArray(actual) ? actual : [actual];
@@ -82,7 +83,9 @@ export function matchesSearch(
   row: Readonly<Record<string, unknown>>,
   search: ResolvedSearch,
 ): boolean {
-  const texts = search.fields.map((info) => row[info.key]).filter((v) => typeof v === 'string');
+  const texts = search.fields
+    .map((info) => own(row, info.key))
+    .filter((v) => typeof v === 'string');
   const folded = texts.map((text) => foldText(text as string));
   return search.tokens.every((token) => folded.some((text) => text.includes(token)));
 }

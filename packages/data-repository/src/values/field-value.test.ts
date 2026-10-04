@@ -1,6 +1,6 @@
 import { FIELD_TYPES } from '@acs/project-schema';
 import type { Field, FieldType } from '@acs/project-schema';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { checkFieldValue } from './field-value.js';
 
 const ID = '0192f1c4-0000-7000-8000-000000000001';
@@ -47,6 +47,23 @@ describe('checkFieldValue: one case per type of dossier 6.3', () => {
     const code = field('string', { pattern: '^[A-Z]{2}\\d{2}$' });
     expect(rule(code, 'FR12')).toBeUndefined();
     expect(rule(code, 'fr12')).toBe('pattern');
+  });
+
+  it('string: a text far over the limit is refused without being spread into an array first', () => {
+    const huge = 'x'.repeat(5_000_000);
+    const iterate = vi.spyOn(String.prototype, Symbol.iterator);
+    try {
+      expect(rule(field('string'), huge)).toBe('maxLength');
+      expect(iterate).not.toHaveBeenCalled();
+      // Close to the limit it does have to count code points.
+      expect(rule(field('string'), 'x'.repeat(256))).toBe('maxLength');
+      expect(iterate).toHaveBeenCalled();
+    } finally {
+      iterate.mockRestore();
+    }
+    // The edge: a character of two code units still counts as one.
+    expect(rule(field('string'), '😀'.repeat(255))).toBeUndefined();
+    expect(rule(field('string'), '😀'.repeat(256))).toBe('maxLength');
   });
 
   it('string: a pattern that could take exponential time is refused, not run', () => {

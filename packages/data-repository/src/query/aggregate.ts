@@ -2,6 +2,7 @@ import type { AggregateFunction, JsonValue } from '@acs/domain';
 import type { FieldInfo } from '../storage/layout.js';
 import { averageDecimals, sumDecimals } from '../values/decimal.js';
 import { compareValues } from './compare.js';
+import { own } from '../values/own.js';
 
 export type ResolvedAggregate = {
   readonly fn: AggregateFunction;
@@ -13,7 +14,7 @@ export type ResolvedAggregate = {
 const INTEGER_AVERAGE_SCALE = 2;
 
 const present = (rows: readonly Record<string, unknown>[], key: string): unknown[] =>
-  rows.map((row) => row[key]).filter((value) => value !== undefined && value !== null);
+  rows.map((row) => own(row, key)).filter((value) => value !== undefined && value !== null);
 
 /** An integer sum as a number when it is a safe integer, as its digits otherwise. */
 function integerSum(values: readonly unknown[]): JsonValue {
