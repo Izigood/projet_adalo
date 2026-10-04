@@ -65,10 +65,15 @@ export async function click(target: HTMLElement, until?: () => void): Promise<vo
 
 /** Types into a field that React controls: the value goes through the setter React listens to. */
 export async function typeInto(
-  field: HTMLInputElement | HTMLSelectElement,
+  field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
   value: string,
 ): Promise<void> {
-  const prototype = field instanceof HTMLSelectElement ? HTMLSelectElement : HTMLInputElement;
+  const prototype =
+    field instanceof HTMLSelectElement
+      ? HTMLSelectElement
+      : field instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement
+        : HTMLInputElement;
   const setter = Object.getOwnPropertyDescriptor(prototype.prototype, 'value')?.set;
   if (setter === undefined) throw new Error('no value setter');
   await act(async () => {

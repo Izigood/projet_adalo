@@ -152,6 +152,34 @@ button:disabled {
   margin-top: var(--acs-space-2);
 }
 
+.commit-field {
+  display: grid;
+  gap: var(--acs-space-1);
+  margin: var(--acs-space-2) 0;
+}
+
+.commit-field input,
+.commit-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--acs-density-control-height);
+  padding: var(--acs-space-1) var(--acs-space-2);
+  border: 1px solid var(--acs-color-border);
+  border-radius: var(--acs-radius-md);
+  background: var(--acs-color-surface);
+}
+
+.commit-field [aria-invalid='true'] {
+  border-color: var(--acs-color-danger);
+}
+
+.zone-inspector h2,
+.zone-nav h2,
+.zone-panel h2 {
+  margin: var(--acs-space-2) 0;
+  font-size: var(--acs-font-size-md);
+}
+
 .field-hint {
   color: var(--acs-color-text-muted);
   font-size: var(--acs-font-size-sm);

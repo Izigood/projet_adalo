@@ -100,6 +100,14 @@ Le panneau du bas donne l'historique (les 20 dernières commandes, la plus réce
 
 **Écart** : le contrôle `axe-core` annoncé pour cette étape est fait à l'étape 8, dans les trois navigateurs : ses règles de contraste et de mise en page demandent un vrai moteur de rendu, que happy-dom n'est pas.
 
+**Inspecteur** (étape 7c, seconde moitié, `ui/inspector.tsx`, `commit-field.tsx`) : à droite, les champs du projet (nom, description, auteur, version, langue ; la clé n'est pas modifiable, RG-11) et de la page choisie (clé, route). Un champ (`CommitField`) change le projet quand on le quitte ou qu'on appuie sur Entrée (pas dans la description, où Entrée est un retour à la ligne), et seulement si ce qui a été tapé n'est pas déjà là, après avoir ôté les espaces autour : une commande, donc une entrée dans l'historique, et non une par touche. Échap rend la valeur. Le champ suit le projet : un annuler, un rétablir ou le choix d'une autre page remplacent ce qui était tapé, et effacent le message d'une page à l'autre. Un champ ne change que sa propre valeur (le nom ne touche pas à la version).
+
+**Ce qui est refusé, et ce qui ne l'est pas** : l'inspecteur ne refuse pas une valeur mal formée (une clé de page qui ne suit pas RG-11, un nom vide) : c'est une commande comme une autre, le projet ne valide alors plus, le panneau le dit et il reste en brouillon de récupération jusqu'à ce qu'il valide (RG-13). Il refuse ce qui n'a pas de sens : une clé ou une route que porte une autre page, dit sur le champ (`role="alert"`, `aria-invalid`, `aria-describedby`) en rendant au champ la valeur du projet.
+
+**Limite connue** : les problèmes de validation du panneau sont ceux des schémas, en anglais (« must match pattern … »), avec le fichier et l'endroit ; ils ne sont pas traduits. Un libellé français par motif d'erreur viendra avec le validateur du lot 13.
+
+**Contrôle dans un vrai navigateur** : le projet a été parcouru dans Chromium : quitter un champ change le projet, Entrée aussi en gardant le focus, annuler remet le champ et le nom du projet, une clé prise est refusée avec son message et la valeur d'avant, une clé mal formée est acceptée et le panneau donne le problème, et les champs tiennent dans la colonne de 288 px. Le volet de test n'avait pas le focus du document : `blur()` n'y émet pas d'événement, la sortie du champ a donc été simulée par l'événement `focusout` que React écoute ; le blur lui-même est un comportement du navigateur, vérifié par les E2E de l'étape 8.
+
 ## Conséquences
 
 - Le Studio ne dépend pas d'IndexedDB : il parle au port, et les tests unitaires utilisent la version en mémoire.

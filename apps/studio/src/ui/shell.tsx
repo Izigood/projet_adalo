@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { t } from '../i18n.js';
 import { CatalogScreen } from './catalog-screen.js';
 import { HistoryControls } from './history-controls.js';
+import { Inspector } from './inspector.js';
 import { PageView } from './page-view.js';
 import { PagesNav } from './pages-nav.js';
 import { Panel } from './panel.js';
@@ -60,7 +61,9 @@ export function Shell() {
         )}
         <PersistenceNotice />
       </main>
-      <aside className="zone zone-inspector" aria-label={t('zone.inspector')} />
+      <aside className="zone zone-inspector" aria-label={t('zone.inspector')}>
+        {open === null || selected === null ? null : <Inspector project={open} pageId={selected} />}
+      </aside>
       <section className="zone zone-panel" aria-label={t('zone.panel')}>
         {open === null ? null : <Panel project={open} />}
       </section>

@@ -105,5 +105,15 @@
   "panel.problems.other": "{count} problèmes de validation : le projet ne peut pas être enregistré",
   "panel.problem": "{file} {path} : {message}",
   "panel.problemsMore": "… et {count} autres problèmes",
+  "inspector.project": "Projet",
+  "inspector.key": "Clé : {key} (non modifiable)",
+  "inspector.name": "Nom du projet",
+  "inspector.description": "Description du projet",
+  "inspector.author": "Auteur du projet",
+  "inspector.version": "Version du projet",
+  "inspector.locale": "Langue du projet",
+  "inspector.page": "Page choisie",
+  "inspector.pageKey": "Clé de la page choisie",
+  "inspector.pageRoute": "Route de la page choisie",
   "persistence.warning": "Le navigateur peut effacer les données du Studio sans prévenir : pensez à exporter vos projets."
 }
