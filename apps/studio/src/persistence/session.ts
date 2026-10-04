@@ -9,6 +9,7 @@ import type {
   Result,
 } from '@acs/domain';
 import { validateFiles } from '@acs/project-schema';
+import { createStore } from 'zustand/vanilla';
 import type { CommandBus } from '../commands/bus.js';
 import { createProject } from '../project/create-project.js';
 import type { NewProject } from '../project/create-project.js';
@@ -59,12 +60,22 @@ export type ProjectSession = {
   /** Saves what waits, then closes the project. */
   close(): Promise<void>;
   readonly status: SaveStatusView;
+  /** The recovery draft on offer for the open project, or null: what the interface shows. */
+  readonly draft: DraftOfferView;
+};
+
+/** What is shown of a recovery draft on offer: when it was made, and how many problems it has. */
+export type DraftOffer = { readonly savedAt: string; readonly issues: number };
+
+export type DraftOfferView = {
+  getState(): DraftOffer | null;
+  subscribe(listener: () => void): () => void;
 };
 
 /** A project that was opened, and the draft that could be taken back (what to show of it). */
 export type OpenedProject = {
   readonly entry: CatalogEntry;
-  readonly draft: { readonly savedAt: string; readonly issues: number } | null;
+  readonly draft: DraftOffer | null;
 };
 
 type Opened = { readonly id: Id; revision: number };
@@ -88,9 +99,20 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
   const delay = options.delayMs ?? AUTOSAVE_DELAY_MS;
   const status = createSaveStatus();
 
+  const offer = createStore<DraftOffer | null>(() => null);
+
   let opened: Opened | null = null;
   /** The recovery draft of the open project, offered and not yet taken or thrown away. */
   let pending: RecoveryDraft | null = null;
+
+  /** Keeps the draft on offer and tells the interface of it, from one place. */
+  function setPending(draft: RecoveryDraft | null): void {
+    pending = draft;
+    offer.setState(
+      draft === null ? null : { savedAt: draft.savedAt, issues: issuesIn(draft.files) },
+      true,
+    );
+  }
   let dirty = false;
   let cancel: (() => void) | undefined;
   let queue: Promise<void> = Promise.resolve();
@@ -170,6 +192,7 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
 
   return {
     status: status.view,
+    draft: { getState: offer.getState, subscribe: offer.subscribe },
     flush,
     current: () => opened?.id ?? null,
 
@@ -181,7 +204,7 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
       if (!stored.ok) return stored;
       bus.load(made.value);
       opened = { id: stored.value.id, revision: stored.value.revision };
-      pending = null;
+      setPending(null);
       status.set({ phase: 'saved' });
       return stored;
     },
@@ -207,12 +230,9 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
       }
       bus.load(state.value);
       opened = { id, revision: entry.revision };
-      pending = draft;
+      setPending(draft);
       status.set({ phase: 'saved' });
-      return ok({
-        entry,
-        draft: draft === null ? null : { savedAt: draft.savedAt, issues: issuesIn(draft.files) },
-      });
+      return ok({ entry, draft: offer.getState() });
     },
 
     async recover() {
@@ -227,7 +247,7 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
       // A draft that cannot be read stays offered, so that it can be thrown away.
       if (!state.ok) return state;
       bus.load(state.value);
-      pending = null;
+      setPending(null);
       // Not saved: the draft is the work of the last session, and the saved project is older. It
       // goes the way of any change, a save if it validates, the draft again if it does not.
       markChanged();
@@ -237,7 +257,7 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
     async dismissDraft() {
       if (pending === null || opened === null) return ok(undefined);
       const discarded = await store.discardDraft(opened.id);
-      if (discarded.ok) pending = null;
+      if (discarded.ok) setPending(null);
       return discarded;
     },
 
@@ -245,7 +265,7 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
       await flush();
       bus.close();
       opened = null;
-      pending = null;
+      setPending(null);
       status.set({ phase: 'idle' });
     },
   };

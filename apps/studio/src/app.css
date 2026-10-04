@@ -88,6 +88,30 @@ button:disabled {
   font-weight: var(--acs-font-weight-bold);
 }
 
+.banner {
+  margin-bottom: var(--acs-space-3);
+  padding: var(--acs-space-3);
+  border: 1px solid var(--acs-color-warning);
+  border-radius: var(--acs-radius-md);
+  background: var(--acs-color-surface-alt);
+}
+
+.banner p {
+  margin: 0 0 var(--acs-space-2);
+  color: var(--acs-color-text);
+}
+
+.banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acs-space-2);
+}
+
+.banner-failure {
+  margin: var(--acs-space-2) 0 0;
+  color: var(--acs-color-danger);
+}
+
 .zone-nav {
   grid-area: nav;
   border-inline-end: 1px solid var(--acs-color-border);

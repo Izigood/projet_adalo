@@ -12,6 +12,7 @@ export function mountStudio(
   services: StudioServices = createStudioServices(),
 ): Root {
   applyTheme(container.ownerDocument);
+  void services.checkPersistence();
   const root = createRoot(container);
   root.render(
     <StrictMode>

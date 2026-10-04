@@ -493,6 +493,54 @@ describe('the recovery draft, offered when the project is opened again (RG-13)',
   });
 });
 
+describe('the draft on offer, for the interface', () => {
+  it('is none to begin with, the draft when a project with one is opened, and none once it is taken or thrown away', async () => {
+    const { next, id } = await withDraft();
+    expect(next.session.draft.getState()).toBeNull();
+    await next.session.open(id);
+    const offer = next.session.draft.getState();
+    expect(offer?.savedAt).toBe(AT);
+    expect(offer?.issues).toBeGreaterThanOrEqual(1);
+    expect((await next.session.recover()).ok).toBe(true);
+    expect(next.session.draft.getState()).toBeNull();
+
+    const again = studio({ store: next.store });
+    await again.session.open(id);
+    expect(again.session.draft.getState()).not.toBeNull();
+    await again.session.dismissDraft();
+    expect(again.session.draft.getState()).toBeNull();
+  });
+
+  it('is kept when the draft cannot be taken back or thrown away, and dropped by create and close', async () => {
+    const { store, next, id } = await withDraft();
+    await next.session.open(id);
+    const stuck: ProjectStore = {
+      ...store,
+      discardDraft: () => Promise.resolve(err(domainError('STORAGE_UNAVAILABLE', 'disk'))),
+    };
+    const other = studio({ store: stuck });
+    await other.session.open(id);
+    await other.session.dismissDraft();
+    expect(other.session.draft.getState()).not.toBeNull();
+
+    await next.session.create({ key: 'OTHER', name: 'Autre' });
+    expect(next.session.draft.getState()).toBeNull();
+    await next.session.open(id);
+    expect(next.session.draft.getState()).not.toBeNull();
+    await next.session.close();
+    expect(next.session.draft.getState()).toBeNull();
+  });
+
+  it('tells those who listen, each time the offer changes', async () => {
+    const { next, id } = await withDraft();
+    let told = 0;
+    next.session.draft.subscribe(() => (told += 1));
+    await next.session.open(id);
+    await next.session.recover();
+    expect(told).toBe(2);
+  });
+});
+
 describe('200 modifications, undo all, redo all, reload (critère de sortie du lot 5)', () => {
   it('gives the same project after a reload as before', async () => {
     const { store, session, bus, state, id } = await created();

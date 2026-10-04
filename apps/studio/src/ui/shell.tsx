@@ -1,5 +1,7 @@
 import { t } from '../i18n.js';
 import { HistoryControls } from './history-controls.js';
+import { PersistenceNotice } from './persistence-notice.js';
+import { RecoveryBanner } from './recovery-banner.js';
 import { SaveBadge } from './save-badge.js';
 import { useServices } from './services-context.js';
 import { useView } from './use-view.js';
@@ -10,18 +12,28 @@ import { useView } from './use-view.js';
  * keyboard or screen-reader user can go from one to the next.
  */
 export function Shell() {
-  const { project } = useServices();
+  const { project, session } = useServices();
   const open = useView(project.view);
   return (
     <div className="studio-shell">
       <header className="zone zone-top">
         <h1>{t('studio.title')}</h1>
-        {open === null ? null : <span className="project-name">{open.project.name}</span>}
+        {open === null ? null : (
+          <>
+            <span className="project-name">{open.project.name}</span>
+            <button type="button" onClick={() => void session.close()}>
+              {t('project.close')}
+            </button>
+          </>
+        )}
         <HistoryControls />
         <SaveBadge />
       </header>
       <nav className="zone zone-nav" aria-label={t('zone.nav')} />
-      <main className="zone zone-work">{open === null ? <p>{t('studio.subtitle')}</p> : null}</main>
+      <main className="zone zone-work">
+        {open === null ? <p>{t('studio.subtitle')}</p> : <RecoveryBanner />}
+        <PersistenceNotice />
+      </main>
       <aside className="zone zone-inspector" aria-label={t('zone.inspector')} />
       <section className="zone zone-panel" aria-label={t('zone.panel')} />
     </div>

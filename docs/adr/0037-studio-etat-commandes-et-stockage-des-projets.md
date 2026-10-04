@@ -76,6 +76,10 @@ Le lot 5 demande un Studio dont toute modification passe par un bus de commandes
 
 **Libellés (ENF-10)** : `t(clé, paramètres)` remplace `{nom}` par le paramètre de ce nom ; un paramètre absent reste visible. Deux contrôles lisent le code, chacun avec son contrôle négatif : aucun composant n'écrit de texte lui-même (texte entre balises, chaîne entre accolades, `aria-label`, `placeholder`, `title`, `alt`, `label`, repérés par l'arbre syntaxique TypeScript), et aucun libellé de `fr.json` ne reste sans usage.
 
+**Récupération, fermeture et stockage à l'écran** (étape 7b, première moitié) : la session publie elle-même l'offre de brouillon (`session.draft`, `{ savedAt, issues }` ou rien), changée à un seul endroit (`setPending`) : l'interface n'en garde pas de copie qui pourrait se périmer. `RecoveryBanner` (`role="alert"`) l'annonce avec la date (en français, dans le fuseau de la personne) et le nombre de problèmes (trois messages : aucun, un, plusieurs), et propose de reprendre ou d'ignorer ; si le brouillon ne se relit pas ou ne se supprime pas, elle le dit et le garde offert, et elle cesse de le dire dès que l'action réussit. Un bouton ferme le projet (il enregistre d'abord ce qui attend) et ramène au catalogue.
+
+**Stockage non persistant (RG-15)** : au montage, le Studio demande au navigateur de garder les données (`checkPersistence`, qui consigne la réponse dans `services.persistence`). Si le navigateur refuse (`best-effort`) ou ne peut pas être interrogé (`unsupported`), une note (`role="status"`) dit qu'il peut effacer les données sans prévenir et qu'il faut exporter les projets ; rien n'est dit tant que la réponse n'est pas là, ni quand le stockage est persistant. L'export lui-même vient au lot 12.
+
 ## Conséquences
 
 - Le Studio ne dépend pas d'IndexedDB : il parle au port, et les tests unitaires utilisent la version en mémoire.
