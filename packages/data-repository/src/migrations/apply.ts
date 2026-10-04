@@ -6,7 +6,7 @@ import type { DataEnvironment, IndexedDbSource, SchemaRow } from '../storage/dat
 import { deriveKeys } from '../storage/layout.js';
 import type { DataLayout, EntityLayout } from '../storage/layout.js';
 import { checkFieldValue } from '../values/field-value.js';
-import { backupName, createBackup, exists } from './backup.js';
+import { backupName, createBackup, exists, matchesBackup, registerBackup } from './backup.js';
 import { conversionFor } from './convert.js';
 import { planMigration } from './plan.js';
 import type { MigrationPlan } from './plan.js';
@@ -294,12 +294,14 @@ export async function migrateEnvironment(
 
     let backup: string | undefined;
     if (plan.destructive) {
+      // The last backup is used again if it holds exactly what the data base holds now, data and
+      // schema: an interrupted migration is resumed with its copy, and a migration that is refused
+      // and tried again does not copy everything again. As soon as anything was written since, it
+      // would not hold what the migration is about to destroy (RG-09): a new copy is taken.
       const resumable =
-        migrationRow !== undefined &&
-        migrationRow.status !== 'done' &&
-        migrationRow.fingerprint === plan.fingerprint &&
-        migrationRow.backup !== undefined &&
-        (await exists(migrationRow.backup, source));
+        migrationRow?.backup !== undefined &&
+        (await exists(migrationRow.backup, source)) &&
+        (await matchesBackup(db, migrationRow.backup, source, schemaRow.signature));
       if (resumable && migrationRow?.backup !== undefined) {
         backup = migrationRow.backup;
       } else {
@@ -309,6 +311,7 @@ export async function migrateEnvironment(
         }
         await options.onProgress?.('backup');
         await createBackup(db, candidate, schemaRow.signature, source, now());
+        await registerBackup(db, candidate);
         backup = candidate;
       }
     }

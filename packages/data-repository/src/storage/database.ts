@@ -3,6 +3,7 @@ import type { DomainError, Result } from '@acs/domain';
 import { PROJECT_KEY_PATTERN } from '@acs/project-schema';
 import Dexie from 'dexie';
 import { planMigration } from '../migrations/plan.js';
+import { isBackupOf } from './backup-names.js';
 import type { DataLayout, SchemaSnapshot } from './layout.js';
 
 /** `test` holds the data of the preview, `prod` those of the published application (RG-04). */
@@ -157,10 +158,53 @@ async function create(
   return finish(db);
 }
 
+/** Whether no data base of that name is there: one that cannot be opened as an existing one. */
+async function isAbsent(name: string, source: IndexedDbSource | undefined): Promise<boolean> {
+  const probe = dexieFor(name, source);
+  if (probe === undefined) return true;
+  try {
+    await probe.open();
+  } catch (error) {
+    if (isMissing(error)) return true;
+    throw error;
+  }
+  probe.close();
+  return false;
+}
+
 /**
- * Deletes the data base of an environment and checks that it is gone (SEC-09): a base that
- * cannot be opened as an existing one is absent. Deleting one that does not exist is not an error.
- * The other environment is not touched.
+ * The backups taken before migrations of the data base `name`: those the browser lists, and those
+ * the data base itself recorded in `_meta` (for a browser that cannot list its data bases, and for
+ * a data base that has been deleted since).
+ */
+async function backupsOf(name: string, source: IndexedDbSource | undefined): Promise<string[]> {
+  const found = new Set<string>();
+  const factory = source?.indexedDB ?? globalThis.indexedDB;
+  if (typeof factory?.databases === 'function') {
+    for (const info of await factory.databases()) {
+      if (info.name !== undefined && isBackupOf(name, info.name)) found.add(info.name);
+    }
+  }
+  const db = dexieFor(name, source);
+  if (db !== undefined) {
+    try {
+      await db.open();
+      const registry = (await db.table('_meta').get('backups')) as { names?: string[] } | undefined;
+      for (const known of registry?.names ?? []) if (isBackupOf(name, known)) found.add(known);
+      db.close();
+    } catch {
+      // No data base, or one that keeps no registry: what the browser listed is all there is.
+    }
+  }
+  return [...found];
+}
+
+/**
+ * Deletes the data base of an environment, and the copies taken of it before its migrations,
+ * and checks that none is left (SEC-09): a backup holds every row, sensitive fields in the
+ * clear, so a purge that kept it would purge nothing. A data base that cannot be opened as an
+ * existing one is absent; deleting one that does not exist is not an error. The other
+ * environment, and its backups, are not touched.
  */
 export async function purgeEnvironment(
   projectKey: string,
@@ -170,22 +214,23 @@ export async function purgeEnvironment(
   const named = databaseName(projectKey, environment);
   if (!named.ok) return named;
   try {
-    const doomed = dexieFor(named.value, source);
-    if (doomed === undefined) return err(storageError(new Error('IndexedDB is not available')));
-    await doomed.delete();
-    const probe = dexieFor(named.value, source);
-    try {
-      await probe?.open();
-    } catch (error) {
-      if (isMissing(error)) return ok(undefined);
-      throw error;
+    if (dexieFor(named.value, source) === undefined) {
+      return err(storageError(new Error('IndexedDB is not available')));
     }
-    probe?.close();
-    return err(
-      domainError('STORAGE_UNAVAILABLE', 'the data base is still there after its deletion', {
-        details: { name: named.value },
-      }),
-    );
+    // The copies first: if one cannot be deleted, the data base and its registry are still there
+    // to try again.
+    const doomed = [...(await backupsOf(named.value, source)), named.value];
+    for (const name of doomed) await dexieFor(name, source)?.delete();
+    for (const name of doomed) {
+      if (!(await isAbsent(name, source))) {
+        return err(
+          domainError('STORAGE_UNAVAILABLE', 'a data base is still there after its deletion', {
+            details: { name },
+          }),
+        );
+      }
+    }
+    return ok(undefined);
   } catch (error) {
     return err(storageError(error));
   }

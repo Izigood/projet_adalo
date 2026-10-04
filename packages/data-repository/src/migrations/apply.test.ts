@@ -7,7 +7,7 @@ import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createDataStore } from '../repository/data-store.js';
 import { runQuery } from '../query/run.js';
-import { databaseName, openEnvironment } from '../storage/database.js';
+import { openEnvironment } from '../storage/database.js';
 import type { IndexedDbSource, OpenEnvironment } from '../storage/database.js';
 import { buildLayout } from '../storage/layout.js';
 import type { DataLayout } from '../storage/layout.js';
@@ -455,19 +455,19 @@ describe('what loses data is approved first, and backed up', () => {
 
   it('says there is nothing to restore when the backup is not there, or is not a backup', async () => {
     const w = await seeded();
-    expect(failure(await restoreBackup('DEMO', 'test', 'nope', w.source)).message).toContain(
-      'no backup named nope',
+    const missing = 'acs-data-DEMO-test-backup-20260101000000';
+    expect(failure(await restoreBackup('DEMO', 'test', missing, w.source)).message).toContain(
+      `no backup named ${missing}`,
     );
-    expect(
-      failure(
-        await restoreBackup(
-          'DEMO',
-          'test',
-          databaseName('DEMO', 'test').ok ? 'acs-data-DEMO-test' : '',
-          w.source,
-        ),
-      ).message,
-    ).toContain('is not a backup');
+    // A data base that has the name of a backup and is not one: nothing in it says what it holds.
+    const lookalike = 'acs-data-DEMO-test-backup-20260101000001';
+    const db = new Dexie(lookalike, { indexedDB: w.source.indexedDB, IDBKeyRange } as never);
+    db.version(1).stores({ t: 'id' });
+    await db.open();
+    db.close();
+    expect(failure(await restoreBackup('DEMO', 'test', lookalike, w.source)).message).toContain(
+      'is not a backup of a data base',
+    );
   });
 });
 
