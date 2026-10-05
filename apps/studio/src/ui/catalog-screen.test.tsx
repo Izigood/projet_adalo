@@ -17,7 +17,7 @@ import { summaryOf, toFiles } from '../project/project-state.js';
 import { t } from '../i18n.js';
 import fr from '../locales/fr.json';
 import { createStudioServices } from '../services.js';
-import type { StudioServices } from '../services.js';
+import type { StudioKit } from '../services.js';
 import { errorMessage } from './errors.js';
 import { daysUntilPurge, formatDateTime } from './format.js';
 
@@ -37,7 +37,7 @@ type Seed = {
 };
 
 /** Puts projects in the store, with the dates the test wants; no project is opened. */
-async function seed(services: StudioServices, projects: Seed[]): Promise<Id[]> {
+async function seed(services: StudioKit, projects: Seed[]): Promise<Id[]> {
   const ids: Id[] = [];
   for (const wanted of projects) {
     const made = createProject({
@@ -62,7 +62,7 @@ const names = (container: HTMLElement) =>
   [...container.querySelectorAll('.catalog-item h3')].map((heading) => heading.textContent);
 
 /** The screen, once the catalogue has been read. */
-async function open(services: StudioServices, expected: number) {
+async function open(services: StudioKit, expected: number) {
   const container = await renderStudio(services);
   await settle(() => expect(names(container)).toHaveLength(expected));
   return container;

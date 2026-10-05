@@ -11,14 +11,17 @@ const ServicesContext = createContext<StudioServices | null>(null);
 export function StudioProvider(props: { services: StudioServices; children: ReactNode }) {
   const { services, children } = props;
   useEffect(() => {
-    const save = () => {
+    const hidden = () => {
       if (document.visibilityState === 'hidden') void services.session.flush();
     };
-    document.addEventListener('visibilitychange', save);
-    window.addEventListener('pagehide', save);
+    // A page that is being left is saved whatever its visibility says at that moment: browsers do
+    // not agree on whether it is already hidden when `pagehide` arrives.
+    const leaving = () => void services.session.flush();
+    document.addEventListener('visibilitychange', hidden);
+    window.addEventListener('pagehide', leaving);
     return () => {
-      document.removeEventListener('visibilitychange', save);
-      window.removeEventListener('pagehide', save);
+      document.removeEventListener('visibilitychange', hidden);
+      window.removeEventListener('pagehide', leaving);
     };
   }, [services]);
   return <ServicesContext.Provider value={services}>{children}</ServicesContext.Provider>;

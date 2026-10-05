@@ -26,6 +26,7 @@ export function RecoveryBanner() {
   return (
     <div className="banner" role="alert">
       <p>{message}</p>
+      <div className="catalog-meta">{t('recovery.warning')}</div>
       <div className="banner-actions">
         <button
           type="button"

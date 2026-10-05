@@ -13,6 +13,8 @@ export type NewProject = {
   readonly description?: string;
   readonly author?: string;
   readonly locale?: string;
+  /** `0.1.0` unless given. */
+  readonly version?: string;
 };
 
 type Generate = <Kind extends string>() => Id<Kind>;
@@ -64,7 +66,7 @@ export function createProject(
         name: input.name,
         description: input.description ?? '',
         author: input.author ?? '',
-        version: '0.1.0',
+        version: input.version ?? '0.1.0',
         locale: input.locale ?? 'fr-FR',
         defaultThemeId: themeId,
         storageMode: 'local',

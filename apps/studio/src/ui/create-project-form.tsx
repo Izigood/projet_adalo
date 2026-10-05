@@ -6,7 +6,16 @@ import { errorMessage } from './errors.js';
 import { useServices } from './services-context.js';
 
 /** What went wrong, field by field; `general` is for what no field explains. */
-export type FieldErrors = { key?: string; name?: string; general?: string };
+export type FieldErrors = {
+  key?: string;
+  name?: string;
+  version?: string;
+  locale?: string;
+  general?: string;
+};
+
+const FIELDS = ['key', 'name', 'version', 'locale'] as const;
+type Field = (typeof FIELDS)[number];
 
 /** The JSON Pointers of the issues the schemas found, as the manifest error carries them. */
 function pointersOf(error: DomainError): string[] {
@@ -30,8 +39,11 @@ export function fieldErrorsOf(error: DomainError): FieldErrors {
     const found: FieldErrors = {};
     if (pointers.includes('/project/key')) found.key = t('create.error.key');
     if (pointers.includes('/project/name')) found.name = t('create.error.name');
-    if (found.key === undefined && found.name === undefined)
+    if (pointers.includes('/project/version')) found.version = t('create.error.version');
+    if (pointers.includes('/project/locale')) found.locale = t('create.error.locale');
+    if (FIELDS.every((field) => found[field] === undefined)) {
       found.general = t('create.error.invalid');
+    }
     return found;
   }
   if (error.code === 'CONSTRAINT_VIOLATION' && error.details?.['field'] === 'key') {
@@ -62,6 +74,8 @@ export function CreateProjectForm() {
       name: text('name'),
       description: text('description'),
       author: text('author'),
+      version: text('version'),
+      locale: text('locale'),
     });
     busy.current = false;
     setPending(false);
@@ -73,11 +87,11 @@ export function CreateProjectForm() {
     const found = fieldErrorsOf(result.error);
     setErrors(found);
     // The first field that is wrong takes the focus, so that the keyboard goes where the work is.
-    const first = found.key !== undefined ? 'key' : found.name !== undefined ? 'name' : undefined;
+    const first = FIELDS.find((field) => found[field] !== undefined);
     if (first !== undefined) form.querySelector<HTMLElement>(`[name="${first}"]`)?.focus();
   }
 
-  const describedBy = (field: 'key' | 'name') =>
+  const describedBy = (field: Field) =>
     [
       field === 'key' ? `${ids}-key-hint` : undefined,
       errors[field] === undefined ? undefined : `${ids}-${field}-error`,
@@ -130,6 +144,40 @@ export function CreateProjectForm() {
 
       <label htmlFor={`${ids}-author`}>{t('create.author')}</label>
       <input id={`${ids}-author`} name="author" maxLength={200} autoComplete="name" />
+
+      <label htmlFor={`${ids}-version`}>{t('create.version')}</label>
+      <input
+        id={`${ids}-version`}
+        name="version"
+        defaultValue="0.1.0"
+        maxLength={64}
+        autoComplete="off"
+        spellCheck={false}
+        aria-invalid={errors.version !== undefined}
+        aria-describedby={describedBy('version')}
+      />
+      {errors.version === undefined ? null : (
+        <div id={`${ids}-version-error`} className="field-error" role="alert">
+          {errors.version}
+        </div>
+      )}
+
+      <label htmlFor={`${ids}-locale`}>{t('create.locale')}</label>
+      <input
+        id={`${ids}-locale`}
+        name="locale"
+        defaultValue="fr-FR"
+        maxLength={8}
+        autoComplete="off"
+        spellCheck={false}
+        aria-invalid={errors.locale !== undefined}
+        aria-describedby={describedBy('locale')}
+      />
+      {errors.locale === undefined ? null : (
+        <div id={`${ids}-locale-error`} className="field-error" role="alert">
+          {errors.locale}
+        </div>
+      )}
 
       {errors.general === undefined ? null : (
         <div className="field-error" role="alert">

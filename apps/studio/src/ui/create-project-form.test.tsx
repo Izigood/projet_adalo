@@ -106,6 +106,69 @@ describe('the form that creates a project (EF-PRJ-01)', () => {
   });
 });
 
+describe('the version and the language of the project (EF-PRJ-01)', () => {
+  it('are asked for, with the values that are given when nothing else is', async () => {
+    const container = await renderStudio(createStudioServices(browser()));
+    expect(field<HTMLInputElement>(container, fr['create.version']).value).toBe('0.1.0');
+    expect(field<HTMLInputElement>(container, fr['create.locale']).value).toBe('fr-FR');
+    expect(field<HTMLInputElement>(container, fr['create.version']).maxLength).toBe(64);
+    expect(field<HTMLInputElement>(container, fr['create.locale']).maxLength).toBe(8);
+  });
+
+  it('go into the project as they were typed', async () => {
+    const services = createStudioServices(browser());
+    const container = await renderStudio(services);
+    fill(container, {
+      [fr['create.key']]: 'DEMO',
+      [fr['create.name']]: 'Demo',
+      [fr['create.version']]: '2.3.4',
+      [fr['create.locale']]: 'en-GB',
+    });
+    await submit(container, () => expect(services.session.current()).not.toBeNull());
+    expect(services.project.view.getState()?.project).toMatchObject({
+      version: '2.3.4',
+      locale: 'en-GB',
+    });
+  });
+
+  it('are said when they are wrong, each on its field, the focus going to the first', async () => {
+    const container = await renderStudio(createStudioServices(browser()));
+    fill(container, {
+      [fr['create.key']]: 'DEMO',
+      [fr['create.name']]: 'Demo',
+      [fr['create.version']]: 'un',
+      [fr['create.locale']]: 'francais',
+    });
+    await submit(container, () =>
+      expect(alerts(container)).toEqual([fr['create.error.version'], fr['create.error.locale']]),
+    );
+    const version = field<HTMLInputElement>(container, fr['create.version']);
+    const locale = field<HTMLInputElement>(container, fr['create.locale']);
+    expect(version.getAttribute('aria-invalid')).toBe('true');
+    expect(locale.getAttribute('aria-invalid')).toBe('true');
+    expect(
+      container.querySelector(`[id="${version.getAttribute('aria-describedby')}"]`)?.textContent,
+    ).toBe(fr['create.error.version']);
+    expect(
+      container.querySelector(`[id="${locale.getAttribute('aria-describedby')}"]`)?.textContent,
+    ).toBe(fr['create.error.locale']);
+    expect(document.activeElement).toBe(version);
+  });
+
+  it('come back as they were when the form is emptied after a project is created', async () => {
+    const services = createStudioServices(browser());
+    const container = await renderStudio(services);
+    const version = field<HTMLInputElement>(container, fr['create.version']);
+    fill(container, {
+      [fr['create.key']]: 'DEMO',
+      [fr['create.name']]: 'Demo',
+      [fr['create.version']]: '9.9.9',
+    });
+    await submit(container, () => expect(services.session.current()).not.toBeNull());
+    expect(version.value).toBe('0.1.0');
+  });
+});
+
 describe('when the project cannot be created', () => {
   it('says that the key is wrong, marks the field, sends the focus there, and creates nothing', async () => {
     const services = createStudioServices(browser());
@@ -244,6 +307,12 @@ describe('what is said of an error', () => {
   it('names the field that the schemas found wrong', () => {
     expect(fieldErrorsOf(manifest('/project/key'))).toEqual({ key: fr['create.error.key'] });
     expect(fieldErrorsOf(manifest('/project/name'))).toEqual({ name: fr['create.error.name'] });
+    expect(fieldErrorsOf(manifest('/project/version'))).toEqual({
+      version: fr['create.error.version'],
+    });
+    expect(fieldErrorsOf(manifest('/project/locale'))).toEqual({
+      locale: fr['create.error.locale'],
+    });
     expect(fieldErrorsOf(manifest('/project/name', '/project/key'))).toEqual({
       key: fr['create.error.key'],
       name: fr['create.error.name'],
@@ -251,7 +320,7 @@ describe('what is said of an error', () => {
   });
 
   it('says it in general when no field of the form is to blame, or when it cannot tell', () => {
-    expect(fieldErrorsOf(manifest('/project/locale'))).toEqual({
+    expect(fieldErrorsOf(manifest('/project/description'))).toEqual({
       general: fr['create.error.invalid'],
     });
     expect(fieldErrorsOf(manifest())).toEqual({ general: fr['create.error.invalid'] });

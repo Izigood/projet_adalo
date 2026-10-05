@@ -19,7 +19,6 @@ export type PersistenceView = {
 
 /** Everything the interface works with: built once, here, and handed to the components. */
 export type StudioServices = {
-  readonly store: ProjectStore;
   /** What a component may do with the open project: look at it. Changes go through the bus. */
   readonly project: { readonly view: ProjectView };
   readonly bus: CommandBus;
@@ -30,13 +29,20 @@ export type StudioServices = {
   checkPersistence(): Promise<void>;
 };
 
+/**
+ * What createStudioServices gives back: the services, and the store they were built on. The store
+ * is not part of what a component may use (StudioServices): it would let it save without a command.
+ * It is there for the tests, and for whoever builds the Studio.
+ */
+export type StudioKit = StudioServices & { readonly store: ProjectStore };
+
 export type ServicesSource = IndexedDbSource & {
   /** Where the browser's storage manager comes from, unless a test gives another. */
   readonly storage?: StorageManagerLike;
 };
 
 /** The services on the browser's own IndexedDB, unless a test gives another. */
-export function createStudioServices(source?: ServicesSource): StudioServices {
+export function createStudioServices(source?: ServicesSource): StudioKit {
   const store = createLocalProjectStore(source);
   const { view, writer } = createProjectStore();
   const bus = createCommandBus({ view, writer });

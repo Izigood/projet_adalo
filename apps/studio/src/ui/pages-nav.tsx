@@ -15,6 +15,15 @@ export function pageAddMessage(error: DomainError): string {
   return t('pages.error.generic');
 }
 
+/** Which field of the form a refusal is about, if any: it is marked, and it takes the focus. */
+export function pageAddField(error: DomainError): 'key' | 'route' | undefined {
+  const field = error.details?.['field'];
+  if (error.code !== 'CONSTRAINT_VIOLATION') return undefined;
+  return field === 'key' || field === 'route' ? field : undefined;
+}
+
+type Failure = { readonly message: string; readonly field?: 'key' | 'route' };
+
 /**
  * The pages of the open project, in their order: to choose one, to move it, to remove it, and to
  * add one. Every change is a command, so every change can be undone: nothing asks to be confirmed.
@@ -27,12 +36,22 @@ export function PagesNav(props: {
   const { project, selected, onSelect } = props;
   const { bus } = useServices();
   const ids = useId();
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
 
-  const run = (command: Parameters<typeof bus.execute>[0]): boolean => {
+  /** Runs a command; the error it is refused with is shown, on the field it is about if there is one. */
+  const run = (command: Parameters<typeof bus.execute>[0]): Failure | null => {
     const result = bus.execute(command);
-    setFailure(result.ok ? null : pageAddMessage(result.error));
-    return result.ok;
+    if (result.ok) {
+      setFailure(null);
+      return null;
+    }
+    const field = pageAddField(result.error);
+    const found: Failure =
+      field === undefined
+        ? { message: pageAddMessage(result.error) }
+        : { message: pageAddMessage(result.error), field };
+    setFailure(found);
+    return found;
   };
 
   function add(event: FormEvent<HTMLFormElement>) {
@@ -41,14 +60,21 @@ export function PagesNav(props: {
     const data = new FormData(form);
     const key = String(data.get('key') ?? '').trim();
     const typedRoute = String(data.get('route') ?? '').trim();
+    // The first field that is wrong takes the focus, so that the keyboard goes where the work is.
+    const focus = (field: 'key' | 'route') =>
+      form.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
     if (key === '') {
-      setFailure(t('pages.error.keyRequired'));
+      setFailure({ message: t('pages.error.keyRequired'), field: 'key' });
+      focus('key');
       return;
     }
     const command = pageAdd({ key, route: typedRoute === '' ? `/${key}` : typedRoute, title: key });
-    if (run(command)) {
+    const refused = run(command);
+    if (refused === null) {
       form.reset();
       onSelect(command.payload.pageId);
+    } else if (refused.field !== undefined) {
+      focus(refused.field);
     }
   }
 
@@ -111,7 +137,15 @@ export function PagesNav(props: {
       <form className="pages-add" aria-labelledby={`${ids}-add`} onSubmit={add} noValidate>
         <h3 id={`${ids}-add`}>{t('pages.addTitle')}</h3>
         <label htmlFor={`${ids}-key`}>{t('pages.key')}</label>
-        <input id={`${ids}-key`} name="key" maxLength={64} autoComplete="off" spellCheck={false} />
+        <input
+          id={`${ids}-key`}
+          name="key"
+          maxLength={64}
+          autoComplete="off"
+          spellCheck={false}
+          aria-invalid={failure?.field === 'key'}
+          aria-describedby={failure?.field === 'key' ? `${ids}-error` : undefined}
+        />
         <label htmlFor={`${ids}-route`}>{t('pages.route')}</label>
         <input
           id={`${ids}-route`}
@@ -119,10 +153,12 @@ export function PagesNav(props: {
           maxLength={200}
           autoComplete="off"
           spellCheck={false}
+          aria-invalid={failure?.field === 'route'}
+          aria-describedby={failure?.field === 'route' ? `${ids}-error` : undefined}
         />
         {failure === null ? null : (
-          <div className="field-error" role="alert">
-            {failure}
+          <div id={`${ids}-error`} className="field-error" role="alert">
+            {failure.message}
           </div>
         )}
         <button type="submit">{t('pages.add')}</button>

@@ -9,7 +9,7 @@ import { projectUpdate } from '../commands/project-commands.js';
 import { t } from '../i18n.js';
 import fr from '../locales/fr.json';
 import { createStudioServices } from '../services.js';
-import type { StudioServices } from '../services.js';
+import type { StudioKit } from '../services.js';
 import { saveMessage } from './save-badge.js';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -25,7 +25,7 @@ afterEach(async () => {
 });
 
 async function render() {
-  const services: StudioServices = createStudioServices({
+  const services: StudioKit = createStudioServices({
     indexedDB: new IDBFactory(),
     IDBKeyRange,
   });
@@ -37,7 +37,7 @@ async function render() {
   return { services, container };
 }
 
-async function open(services: StudioServices, key = 'DEMO', name = 'Demo') {
+async function open(services: StudioKit, key = 'DEMO', name = 'Demo') {
   const made = await act(async () => services.session.create({ key, name }));
   if (!made.ok) throw new Error(made.error.message);
   return made.value.id;
@@ -240,6 +240,18 @@ describe('saving when the page is left', () => {
     });
     await act(async () => services.session.flush());
     expect(container.querySelector('output')?.textContent).toBe(fr['save.saved']);
+  });
+
+  it('saves on pagehide even when the page does not say it is hidden yet', async () => {
+    const { services } = await render();
+    const id = await open(services);
+    await act(async () => void services.bus.execute(projectUpdate({ name: 'Un' })));
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    await act(async () => void window.dispatchEvent(new Event('pagehide')));
+    await vi.waitFor(async () => {
+      const stored = await services.store.load(id);
+      expect(stored.ok && stored.value?.entry.name).toBe('Un');
+    });
   });
 
   it('stops listening when the Studio is taken off the page', async () => {

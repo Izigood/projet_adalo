@@ -57,8 +57,11 @@ export type ProjectSession = {
   current(): Id | null;
   /** Saves now what waits for the delay. */
   flush(): Promise<void>;
-  /** Saves what waits, then closes the project. */
-  close(): Promise<void>;
+  /**
+   * Closes the project, once what waits is saved, or kept as a recovery draft when it cannot be saved.
+   * It refuses, and the project stays open, when the changes can be neither saved nor kept.
+   */
+  close(): Promise<Result<void, DomainError>>;
   readonly status: SaveStatusView;
   /** The recovery draft on offer for the open project, or null: what the interface shows. */
   readonly draft: DraftOfferView;
@@ -114,6 +117,8 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
     );
   }
   let dirty = false;
+  /** Counts the changes made to the open project: a wait can tell whether any came meanwhile. */
+  let changes = 0;
   let cancel: (() => void) | undefined;
   let queue: Promise<void> = Promise.resolve();
 
@@ -125,6 +130,7 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
   /** The project changed: it will be saved once the delay has gone by without another change. */
   function markChanged(): void {
     dirty = true;
+    changes += 1;
     status.set({ phase: 'unsaved' });
     stopTimer();
     cancel = scheduler.after(delay, () => void flush());
@@ -136,10 +142,29 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
       dirty = false;
       return;
     }
-    if (opened !== null) markChanged();
+    if (opened === null) return;
+    // Working on the saved project is not taking the draft back: the offer goes from the screen, and
+    // the draft stays in the store until a save or another draft takes its place.
+    if (event.cause === 'command' && pending !== null) setPending(null);
+    markChanged();
   });
 
   async function saveNow(): Promise<void> {
+    try {
+      await trySave();
+    } catch (cause) {
+      // A store that throws instead of answering: the changes are kept, and the saves go on.
+      dirty = true;
+      status.set({
+        phase: 'error',
+        error: domainError('STORAGE_UNAVAILABLE', 'the save failed', {
+          details: { cause: String(cause) },
+        }),
+      });
+    }
+  }
+
+  async function trySave(): Promise<void> {
     const target = opened;
     const state = view.getState();
     if (!dirty || target === null || state === null) return;
@@ -181,6 +206,53 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
     if (!dirty) status.set({ phase: 'saved' });
   }
 
+  /**
+   * Gets the open project ready to be left: what waits is saved; what cannot be saved (the store
+   * fails, another tab saved first) is kept as a recovery draft; and when it can be neither, the
+   * project is not left. A change that comes while this waits is looked after in its turn, so that
+   * nothing is dropped between the last look and the moment the project is replaced.
+   */
+  async function release(): Promise<Result<void, DomainError>> {
+    for (;;) {
+      const before = changes;
+      await flush();
+      if (!dirty) return ok(undefined);
+      // It changed while it was being saved: save again. Otherwise the save itself failed.
+      if (changes === before) break;
+    }
+    for (;;) {
+      const seen = changes;
+      const target = opened;
+      const state = view.getState();
+      if (target === null || state === null) {
+        dirty = false;
+        return ok(undefined);
+      }
+      let kept: Result<void, DomainError>;
+      try {
+        kept = await store.saveDraft({
+          projectId: target.id,
+          savedAt: now(),
+          baseRevision: target.revision,
+          files: toFiles(state),
+        });
+      } catch (cause) {
+        kept = err(
+          domainError('STORAGE_UNAVAILABLE', 'the draft could not be kept', {
+            details: { cause: String(cause) },
+          }),
+        );
+      }
+      if (!kept.ok) {
+        status.set({ phase: 'error', error: kept.error });
+        return kept;
+      }
+      if (changes === seen) {
+        dirty = false;
+        return ok(undefined);
+      }
+    }
+  }
   function flush(): Promise<void> {
     stopTimer();
     queue = queue.then(saveNow);
@@ -197,11 +269,18 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
     current: () => opened?.id ?? null,
 
     async create(input) {
-      await flush();
       const made = createProject(input);
       if (!made.ok) return made;
+      const left = await release();
+      if (!left.ok) return left;
       const stored = await store.create(summaryOf(made.value), toFiles(made.value), now());
       if (!stored.ok) return stored;
+      // A change made while the new project was being stored is looked after before it replaces
+      // the open one (should that fail, the new project is in the catalogue, and not opened).
+      while (dirty) {
+        const again = await release();
+        if (!again.ok) return again;
+      }
       bus.load(made.value);
       opened = { id: stored.value.id, revision: stored.value.revision };
       setPending(null);
@@ -210,31 +289,36 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
     },
 
     async open(id) {
-      await flush();
-      const loaded = await store.load(id);
-      if (!loaded.ok) return loaded;
-      if (loaded.value === null) return err(unknown(id));
-      const { entry, files } = loaded.value;
-      const state = fromFiles(files);
-      if (!state.ok) return state;
-      // Read before anything is replaced: a store that fails here leaves the open project as it is.
-      const drafted = await store.loadDraft(id);
-      if (!drafted.ok) return drafted;
-      // A draft older than the last save was written before it (a save that could not drop it):
-      // what it holds is already in the project. One made at the same instant is kept: asking once
-      // costs less than losing what was done.
-      let draft = drafted.value;
-      if (draft !== null && Date.parse(draft.savedAt) < Date.parse(entry.updatedAt)) {
-        await store.discardDraft(id);
-        draft = null;
+      for (;;) {
+        const left = await release();
+        if (!left.ok) return left;
+        const loaded = await store.load(id);
+        if (!loaded.ok) return loaded;
+        if (loaded.value === null) return err(unknown(id));
+        const { entry, files } = loaded.value;
+        const state = fromFiles(files);
+        if (!state.ok) return state;
+        // Read before anything is replaced: a store that fails here leaves the open project as it is.
+        const drafted = await store.loadDraft(id);
+        if (!drafted.ok) return drafted;
+        // A draft older than the last save was written before it (a save that could not drop it):
+        // what it holds is already in the project. One made at the same instant is kept: asking once
+        // costs less than losing what was done.
+        let draft = drafted.value;
+        if (draft !== null && Date.parse(draft.savedAt) < Date.parse(entry.updatedAt)) {
+          await store.discardDraft(id);
+          draft = null;
+        }
+        // The open project changed while this was being read (possibly the very one being opened,
+        // which would then be read out of date): look after the change, and read again.
+        if (dirty) continue;
+        bus.load(state.value);
+        opened = { id, revision: entry.revision };
+        setPending(draft);
+        status.set({ phase: 'saved' });
+        return ok({ entry, draft: offer.getState() });
       }
-      bus.load(state.value);
-      opened = { id, revision: entry.revision };
-      setPending(draft);
-      status.set({ phase: 'saved' });
-      return ok({ entry, draft: offer.getState() });
     },
-
     async recover() {
       if (pending === null || opened === null) {
         return err(
@@ -262,11 +346,13 @@ export function createProjectSession(options: SessionOptions): ProjectSession {
     },
 
     async close() {
-      await flush();
+      const left = await release();
+      if (!left.ok) return left;
       bus.close();
       opened = null;
       setPending(null);
       status.set({ phase: 'idle' });
+      return ok(undefined);
     },
   };
 }

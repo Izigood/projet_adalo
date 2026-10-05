@@ -11,7 +11,7 @@ import {
   settle,
   unmountAll,
 } from '../../test-kit/ui.js';
-import { pageAdd, pageRename } from '../commands/page-commands.js';
+import { pageAdd, pageRemove, pageRename } from '../commands/page-commands.js';
 import { t } from '../i18n.js';
 import fr from '../locales/fr.json';
 import { createStudioServices } from '../services.js';
@@ -124,6 +124,45 @@ describe('adding a page', () => {
       expect(field<HTMLInputElement>(container, fr['pages.key']).value).toBe(key);
     },
   );
+
+  it.each([
+    ['a key that is taken', 'home', '/autre', fr['pages.key'], fr['pages.error.keyTaken']],
+    ['a route that is taken', 'autre', '/', fr['pages.route'], fr['pages.error.routeTaken']],
+    ['no key', '', '/autre', fr['pages.key'], fr['pages.error.keyRequired']],
+  ])(
+    'marks the field that %s, links it to the message, and sends the focus there',
+    async (_name, key, route, wrongField, message) => {
+      const { container } = await open();
+      field<HTMLInputElement>(container, fr['pages.key']).value = key;
+      field<HTMLInputElement>(container, fr['pages.route']).value = route;
+      await click(button(container, fr['pages.add']));
+      const wrong = field<HTMLInputElement>(container, wrongField);
+      const other = field<HTMLInputElement>(
+        container,
+        wrongField === fr['pages.key'] ? fr['pages.route'] : fr['pages.key'],
+      );
+      expect(wrong.getAttribute('aria-invalid')).toBe('true');
+      expect(
+        container.querySelector(`[id="${wrong.getAttribute('aria-describedby')}"]`)?.textContent,
+      ).toBe(message);
+      expect(other.getAttribute('aria-invalid')).toBe('false');
+      expect(other.getAttribute('aria-describedby')).toBeNull();
+      expect(document.activeElement).toBe(wrong);
+    },
+  );
+
+  it('does not mark a field for a refusal that is not about one', async () => {
+    const { services, container } = await open();
+    await addPages(services, ['orders']);
+    await settle(() => expect(keys(container)).toHaveLength(2));
+    // The page of welcome cannot be removed, which no button of the list offers: ask the bus.
+    const home = services.project.view.getState()?.initialPageId as Id<'page'>;
+    await act(async () => void services.bus.execute(pageRemove({ pageId: home })));
+    expect(nav(container).querySelector('[role="alert"]')).toBeNull();
+    for (const label of [fr['pages.key'], fr['pages.route']]) {
+      expect(field<HTMLInputElement>(container, label).getAttribute('aria-invalid')).toBe('false');
+    }
+  });
 
   it('stops saying it once a page is added', async () => {
     const { container } = await open();

@@ -541,6 +541,220 @@ describe('the draft on offer, for the interface', () => {
   });
 });
 
+/** A store whose saves fail, as a disk that is full or another tab that saved first would make them. */
+function savesFailing(
+  store: ProjectStore,
+  code: 'STORAGE_UNAVAILABLE' | 'VERSION_CONFLICT',
+  drafts = true,
+): ProjectStore {
+  return {
+    ...store,
+    save: () => Promise.resolve(err(domainError(code, 'no'))),
+    saveDraft: (draft) =>
+      drafts
+        ? store.saveDraft(draft)
+        : Promise.resolve(err(domainError('STORAGE_UNAVAILABLE', 'no'))),
+  };
+}
+
+describe('leaving a project whose changes could not be saved (never lose them in silence)', () => {
+  it.each([
+    ['the store fails', 'STORAGE_UNAVAILABLE'],
+    ['another tab saved first', 'VERSION_CONFLICT'],
+  ] as const)(
+    'keeps the changes as a recovery draft when the project is closed and %s',
+    async (_why, code) => {
+      const first = await created();
+      const flaky = studio({ store: savesFailing(first.store, code) });
+      await flaky.session.open(first.id);
+      flaky.bus.execute(projectUpdate({ name: 'Perdu ?' }));
+      const closed = await flaky.session.close();
+      expect(closed.ok).toBe(true);
+      expect(flaky.session.current()).toBeNull();
+      expect((await stored(first.store, first.id)).entry.name).toBe('Demo');
+      const draft = await first.store.loadDraft(first.id);
+      const kept = draft.ok && draft.value?.files['project.json'];
+      expect((kept as { project: { name: string } }).project.name).toBe('Perdu ?');
+    },
+  );
+
+  it('keeps the project open, and says why, when the changes can be neither saved nor kept', async () => {
+    const first = await created();
+    const broken = studio({ store: savesFailing(first.store, 'STORAGE_UNAVAILABLE', false) });
+    await broken.session.open(first.id);
+    broken.bus.execute(projectUpdate({ name: 'Perdu ?' }));
+    const closed = await broken.session.close();
+    expect(closed.ok ? '' : closed.error.code).toBe('STORAGE_UNAVAILABLE');
+    expect(broken.session.current()).toBe(first.id);
+    expect(broken.name()).toBe('Perdu ?');
+    expect(broken.session.status.getState().phase).toBe('error');
+  });
+
+  it('keeps the changes of the project that is left when another one is opened', async () => {
+    const first = await created();
+    const second = await first.session.create({ key: 'OTHER', name: 'Autre' });
+    if (!second.ok) throw new Error(second.error.message);
+    await first.session.close();
+    const flaky = studio({ store: savesFailing(first.store, 'VERSION_CONFLICT') });
+    await flaky.session.open(first.id);
+    flaky.bus.execute(projectUpdate({ name: 'Perdu ?' }));
+    const opened = await flaky.session.open(second.value.id);
+    expect(opened.ok).toBe(true);
+    expect(flaky.session.current()).toBe(second.value.id);
+    const draft = await first.store.loadDraft(first.id);
+    expect(draft.ok && draft.value).not.toBeNull();
+  });
+
+  it('does not open or create anything when the changes of the open project can be neither saved nor kept', async () => {
+    const first = await created();
+    const other = await first.session.create({ key: 'OTHER', name: 'Autre' });
+    if (!other.ok) throw new Error(other.error.message);
+    await first.session.close();
+    const broken = studio({ store: savesFailing(first.store, 'STORAGE_UNAVAILABLE', false) });
+    await broken.session.open(first.id);
+    broken.bus.execute(projectUpdate({ name: 'Perdu ?' }));
+
+    const opening = await broken.session.open(other.value.id);
+    expect(opening.ok).toBe(false);
+    const creating = await broken.session.create({ key: 'THIRD', name: 'Troisième' });
+    expect(creating.ok).toBe(false);
+    expect(broken.session.current()).toBe(first.id);
+    expect(broken.name()).toBe('Perdu ?');
+    const all = await first.store.list();
+    expect(all.ok && all.value.map((entry) => entry.key).sort()).toEqual(['DEMO', 'OTHER']);
+  });
+
+  it('saves a change made while another project is being read, before that one replaces it', async () => {
+    const first = await created();
+    const other = await first.session.create({ key: 'OTHER', name: 'Autre' });
+    if (!other.ok) throw new Error(other.error.message);
+    await first.session.close();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const slow: ProjectStore = {
+      ...first.store,
+      load: async (id) => {
+        if (id === other.value.id) await gate;
+        return first.store.load(id);
+      },
+    };
+    const racing = studio({ store: slow });
+    await racing.session.open(first.id);
+    const opening = racing.session.open(other.value.id);
+    // Past the first save of the open project: the change falls while the other one is being read.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    racing.bus.execute(projectUpdate({ name: 'Modifié pendant la lecture' }));
+    release();
+    await opening;
+    expect(racing.session.current()).toBe(other.value.id);
+    expect((await stored(first.store, first.id)).entry.name).toBe('Modifié pendant la lecture');
+  });
+  it('saves, and does not just keep as a draft, a change that comes while the last save is on its way', async () => {
+    const first = await created();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let saves = 0;
+    const slow: ProjectStore = {
+      ...first.store,
+      save: async (summary, files, expected, at) => {
+        saves += 1;
+        if (saves === 1) await gate;
+        return first.store.save(summary, files, expected, at);
+      },
+    };
+    const made = studio({ store: slow });
+    await made.session.open(first.id);
+    made.bus.execute(projectUpdate({ name: 'B' }));
+    const closing = made.session.close();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    // The first save (of B) is on its way: a change comes now, and must not be reduced to a draft.
+    made.bus.execute(projectUpdate({ name: 'C' }));
+    release();
+    expect((await closing).ok).toBe(true);
+    expect((await stored(first.store, first.id)).entry.name).toBe('C');
+    expect(await first.store.loadDraft(first.id)).toEqual({ ok: true, value: null });
+  });
+
+  it('saves a change made while a project is being created, before the new one replaces it', async () => {
+    const first = await created();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const slow: ProjectStore = {
+      ...first.store,
+      create: async (summary, files, at) => {
+        await gate;
+        return first.store.create(summary, files, at);
+      },
+    };
+    const racing = studio({ store: slow });
+    await racing.session.open(first.id);
+    const creating = racing.session.create({ key: 'NEWK', name: 'Nouveau' });
+    // Past the first save of the open project: the change falls while the other one is being read.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    racing.bus.execute(projectUpdate({ name: 'Modifié pendant la création' }));
+    release();
+    const made = await creating;
+    expect(made.ok).toBe(true);
+    expect((await stored(first.store, first.id)).entry.name).toBe('Modifié pendant la création');
+  });
+});
+
+describe('a save that throws', () => {
+  it('does not stop the saves that follow: the status says so, and the next request saves', async () => {
+    const first = await created();
+    let throwing = true;
+    const exploding: ProjectStore = {
+      ...first.store,
+      save: (summary, files, expected, at) => {
+        if (throwing) throw new Error('boom');
+        return first.store.save(summary, files, expected, at);
+      },
+    };
+    const made = studio({ store: exploding });
+    await made.session.open(first.id);
+    made.bus.execute(projectUpdate({ name: 'Un' }));
+    await expect(made.session.flush()).resolves.toBeUndefined();
+    expect(made.session.status.getState().phase).toBe('error');
+
+    throwing = false;
+    await made.session.flush();
+    expect((await stored(first.store, first.id)).entry.name).toBe('Un');
+    expect(made.session.status.getState()).toEqual({ phase: 'saved' });
+  });
+});
+
+describe('a change made while a recovery draft is on offer', () => {
+  it('withdraws the offer at once, and the draft is replaced by the next save, not lost before', async () => {
+    const { store, next, id } = await withDraft();
+    await next.session.open(id);
+    expect(next.session.draft.getState()).not.toBeNull();
+
+    next.bus.execute(projectUpdate({ name: 'Autre travail' }));
+    // The offer is gone from the screen, and the draft is still in the store: closing the tab now
+    // would leave it to be offered again.
+    expect(next.session.draft.getState()).toBeNull();
+    expect(await store.loadDraft(id)).not.toEqual({ ok: true, value: null });
+
+    await next.session.flush();
+    expect(await store.loadDraft(id)).toEqual({ ok: true, value: null });
+    expect((await stored(store, id)).entry.name).toBe('Autre travail');
+    expect((await next.session.recover()).ok).toBe(false);
+  });
+
+  it('is replaced by the new work when that work does not validate either', async () => {
+    const { store, next, state, id } = await withDraft();
+    await next.session.open(id);
+    next.bus.execute(pageRename({ pageId: next.state().initialPageId, key: 'Autre mauvaise clé' }));
+    expect(next.session.draft.getState()).toBeNull();
+    await next.session.flush();
+    const draft = await store.loadDraft(id);
+    const page = draft.ok && draft.value ? JSON.stringify(draft.value.files) : '';
+    expect(page).toContain('Autre mauvaise clé');
+    expect(page).not.toContain('Not A Key');
+    expect(state()).toBeDefined();
+  });
+});
+
 describe('200 modifications, undo all, redo all, reload (critère de sortie du lot 5)', () => {
   it('gives the same project after a reload as before', async () => {
     const { store, session, bus, state, id } = await created();

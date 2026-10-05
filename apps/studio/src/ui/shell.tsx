@@ -22,6 +22,13 @@ export function Shell() {
   const { project, session } = useServices();
   const open = useView(project.view);
   const [chosen, setChosen] = useState<Id<'page'> | null>(null);
+  /** Set when the project could not be closed: its changes could be neither saved nor kept. */
+  const [stuck, setStuck] = useState(false);
+
+  async function close() {
+    const closed = await session.close();
+    setStuck(!closed.ok);
+  }
   // The page chosen, or the first one when it is gone (removed, or another project was opened).
   const selected =
     open === null
@@ -37,7 +44,7 @@ export function Shell() {
         {open === null ? null : (
           <>
             <span className="project-name">{open.project.name}</span>
-            <button type="button" onClick={() => void session.close()}>
+            <button type="button" onClick={() => void close()}>
               {t('project.close')}
             </button>
           </>
@@ -55,6 +62,11 @@ export function Shell() {
           <CatalogScreen />
         ) : (
           <>
+            {stuck ? (
+              <div className="banner banner-failure" role="alert">
+                {t('project.closeRefused')}
+              </div>
+            ) : null}
             <RecoveryBanner />
             <PageView project={open} pageId={selected} />
           </>

@@ -97,6 +97,8 @@ describe('the recovery draft on screen (RG-13)', () => {
         ? `Un brouillon de récupération du ${date} contient des modifications non enregistrées (1 problème).`
         : `Un brouillon de récupération du ${date} contient des modifications non enregistrées (${offer?.issues} problèmes).`;
     expect(banner?.querySelector('p')?.textContent).toBe(expected);
+    // Working on the saved project without taking the draft back replaces it: the banner says so.
+    expect(banner?.textContent).toContain(fr['recovery.warning']);
     expect(button(container, fr['recovery.recover'])).toBeTruthy();
     expect(button(container, fr['recovery.dismiss'])).toBeTruthy();
     expect(
@@ -236,6 +238,45 @@ describe('closing the project', () => {
     expect(container.querySelector('main')?.textContent).toContain(fr['studio.subtitle']);
     const stored = await services.store.load(made.value.id);
     expect(stored.ok && stored.value?.entry.name).toBe('Avant fermeture');
+  });
+});
+
+describe('a project that cannot be closed without losing what was done', () => {
+  const failing = () =>
+    Promise.resolve({
+      ok: false as const,
+      error: { code: 'STORAGE_UNAVAILABLE' as const, message: 'disk', correlationId: 'x' },
+    });
+
+  it('stays open, and says why, when the changes can be neither saved nor kept; closes once they can', async () => {
+    const services = createStudioServices(browser());
+    const container = await render(services);
+    const made = await act(async () => services.session.create({ key: 'DEMO', name: 'Demo' }));
+    if (!made.ok) throw new Error(made.error.message);
+    await act(async () => void services.bus.execute(projectUpdate({ name: 'À ne pas perdre' })));
+
+    const { save, saveDraft } = services.store;
+    services.store.save = failing;
+    services.store.saveDraft = failing;
+    await click(button(container, fr['project.close']), () =>
+      expect(container.querySelector('.banner-failure')?.textContent).toBe(
+        fr['project.closeRefused'],
+      ),
+    );
+    expect(services.project.view.getState()?.project.name).toBe('À ne pas perdre');
+    expect(container.querySelector('.project-name')?.textContent).toBe('À ne pas perdre');
+
+    services.store.save = save;
+    services.store.saveDraft = saveDraft;
+    await click(button(container, fr['project.close']), () => {
+      expect(services.project.view.getState()).toBeNull();
+      expect(container.querySelector('.banner-failure')).toBeNull();
+      // The catalogue that comes back has read its list: nothing lands after the test.
+      expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+      expect(container.querySelector('.catalog-item')).not.toBeNull();
+    });
+    const stored = await services.store.load(made.value.id);
+    expect(stored.ok && stored.value?.entry.name).toBe('À ne pas perdre');
   });
 });
 
