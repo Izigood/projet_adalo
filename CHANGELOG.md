@@ -2,6 +2,77 @@
 
 Format inspiré de Keep a Changelog. Un lot terminé = une entrée et un tag `vX.Y.0` (dossier § 9.6).
 
+## [0.5.0] — Lot 5 « Studio shell et commandes » — 2026-10-05
+
+Tag proposé : **`v0.5.0`** (non posé : à créer après validation du lot). Exigences : EF-PRJ-01, EF-PRJ-02, EF-UI-06, ARC-STU-01 à 03 (lecture dans l'ADR-0037), RG-13, RG-15.
+
+### Ajouté
+
+- **Port `ProjectStore`** (`packages/domain`) : catalogue, projet et paquet, verrou de révision, archivage, corbeille de 30 jours, brouillon de récupération. Son **adaptateur IndexedDB** (`packages/data-repository`, base `acs-studio`, Dexie) garde le catalogue, les paquets et les brouillons dans trois tables ; chaque opération est une transaction qui vérifie avant d'écrire.
+- **État du projet** (`apps/studio`) : le paquet est lu et réécrit à l'identique (`fromFiles`, `toFiles`, tenu sur les huit fixtures valides), rangé par identifiant (ARC-STU-01), dans un store Zustand en lecture seule pour les composants : seul le bus de commandes peut y écrire, et le projet est gelé en profondeur.
+- **Bus de commandes** (ARC-STU-02, EF-UI-06) : annuler et rétablir par patchs Immer, sans `undo` écrit à la main, sur 500 commandes ; `CMD-PROJECT-UPDATE`, `CMD-PAGE-ADD`, `-RENAME`, `-REMOVE`, `-MOVE` ; événement `EVT-PROJECT-CHANGED`.
+- **Sauvegarde automatique** (RG-13, ARC-STU-03) : 2 secondes après la dernière commande, seulement si le paquet passe la validation structurelle ; sinon brouillon de récupération, proposé à la réouverture, repris ou jeté. Les sauvegardes sont mises à la suite. Quitter un projet enregistre d'abord ce qui attend.
+- **Catalogue de projets** (EF-PRJ-02) : recherche, filtre par état, tri, duplication (aucun identifiant en commun avec l'original), archivage, corbeille de 30 jours purgée à l'ouverture du catalogue.
+- **Interface** : les cinq zones (barre du haut, navigation, travail, inspecteur, panneau), le catalogue, le formulaire de création (EF-PRJ-01), les pages (choisir, monter, descendre, supprimer, ajouter), l'inspecteur (champs du projet et de la page choisie), le panneau d'historique et de validation, annuler et rétablir par boutons et par Ctrl ou Cmd + Z, Ctrl + Maj + Z, Ctrl + Y, le statut de la sauvegarde, la bannière de récupération, l'avertissement de stockage non persistant (RG-15).
+- **Libellés** : tous dans `locales/fr.json`, avec `t(clé, paramètres)`. Deux contrôles lisent le code : aucun composant n'écrit de texte lui-même (repéré dans l'arbre syntaxique TypeScript), aucun libellé n'est inutilisé.
+- **ADR** : 0037 (état, commandes et stockage des projets ; complété à chaque étape, avec la revue de fin de lot). Dépendances de `apps/studio` : `zustand` 5 et `immer` 11 (MIT), `fast-check` (MIT) et `fake-indexeddb` (Apache-2.0) en développement.
+
+### Critères de sortie du lot 5
+
+| Critère                                                                                | Preuve                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Créer un projet, 200 modifications, tout annuler, tout rétablir, recharger : identique | `e2e/studio-project.spec.ts` dans Chromium (28 s), Firefox (37 s) et WebKit (72 s) : le Studio construit, piloté par son interface, avec les vraies touches et le vrai IndexedDB. Le paquet est lu dans IndexedDB lui-même : identique après l'aller-retour et après le rechargement. Côté unitaire : `session.test.ts` (200 modifications, enregistrer, rouvrir) et `page-commands.test.ts` (200 commandes, plus un test de propriété). |
+| EF-PRJ-01 : création, métadonnées, projet rouvert après rechargement                   | `create-project-form.test.tsx` (champs, erreurs par champ, focus, double envoi), `project.test.ts` (paquet valide, identifiants neufs), `session.test.ts` et l'E2E (rouvert après rechargement).                                                                                                                                                                                                                                         |
+| EF-PRJ-02 : recherche, filtre, tri, duplication, archivage, corbeille de 30 jours      | `catalog.test.ts` (recherche, tri, duplication sur les huit fixtures et un projet créé), `catalog-service.test.ts`, `catalog-screen.test.tsx`, `local-project-store.test.ts` (corbeille : 29 jours 23 heures gardés, 30 jours purgés, paquet et brouillon avec).                                                                                                                                                                         |
+| EF-UI-06 : annuler et rétablir, pile d'au moins 200                                    | `bus.test.ts`, `page-commands.test.ts`, `history-controls` dans `shell.test.tsx` (boutons, raccourcis, champ de saisie épargné) ; l'E2E annule et rétablit 200 commandes avec le clavier puis avec les boutons.                                                                                                                                                                                                                          |
+| RG-13 : autosave à 2 s, seulement si le paquet valide, sinon brouillon                 | `session.test.ts` (délai, rafale, validation, brouillon, reprise, jeter, conflit, échec du magasin, file séquentielle), `recovery.test.tsx` (à l'écran).                                                                                                                                                                                                                                                                                 |
+| Accessibilité                                                                          | `axe-core` dans les trois navigateurs sur le catalogue et sur un projet ouvert (avec un message d'erreur et un problème de validation affichés), à 1280 et 360 px, en thème clair et sombre : 24 contrôles, aucune violation sérieuse ou critique.                                                                                                                                                                                       |
+| Contrôles négatifs (REC-10)                                                            | `e2e-gate.test.ts` : une page qui n'est pas le Studio fait échouer le critère ; une base neuve à chaque chargement fait échouer exactement « stocké » et « rechargé » ; des raccourcis qui n'atteignent jamais le Studio font échouer exactement les trois faits du clavier ; un texte gris fait échouer `axe` sur le contraste. Et les contrôles des libellés (`labels.test.ts`).                                                       |
+| `pnpm verify` vert                                                                     | 1726 tests unitaires, 132 tests de gates, 225 tests E2E sur 3 navigateurs, 18 contrôles de la gate E2E (exécution avant le commit `c0b241a`).                                                                                                                                                                                                                                                                                            |
+
+### Ce que la revue et les E2E ont trouvé (et qui est corrigé)
+
+- **Quitter un projet après un échec de sauvegarde perdait les modifications, en silence (revue, majeur)** : le résultat de `flush` était ignoré et le chargement qui suit remettait le projet « propre ». Quitter un projet enregistre maintenant d'abord, garde en brouillon ce qui ne peut pas l'être, et ne quitte pas le projet quand ce n'est possible ni de l'un ni de l'autre.
+- **Une modification faite pendant la lecture ou la création d'un autre projet était perdue (revue, majeur)** : elle est traitée avant que le nouveau projet ne remplace l'ancien.
+- **Une sauvegarde qui levait une exception bloquait toutes les suivantes (revue, majeur)**.
+- **Un brouillon proposé était supprimé par la première sauvegarde valide, l'offre restant affichée (revue, majeur)** : « reprendre » aurait écrasé le travail fait depuis. La première modification retire l'offre, la bannière le dit.
+- **L'inspecteur montrait la valeur précédente pendant un rendu (E2E, sous charge)** : une clé tapée à ce moment s'ajoutait à l'ancienne (`p1r1` pour `r1`, une fois sur cinq). Le champ suit maintenant le projet dans le rendu même où la valeur change ; un test enregistre ce que contient le champ à chaque rendu.
+- **Un écran du catalogue mettait son état à jour après sa disparition (tests répétés)** : Vitest signalait une erreur après la fin de l'environnement, une fois sur trois, et sortait en échec. Garde ajouté ; 25 exécutions de suite propres.
+- **Réponses du catalogue dans le désordre** : seule la dernière question compte ; l'écran est `aria-busy` pendant la lecture.
+- **Une boucle sans fin dans `freeKey`** pour une clé de départ invalide, retirée ; **un test des problèmes de validation** comptait 22 là où il y en avait 44 ; **un compteur de problèmes** mal pluralisé que seule une expression régulière trop large laissait passer.
+- **Mutations** : environ 270 mutations du code du lot ont été vérifiées étape par étape ; chaque survivante a reçu son test (pluriel des problèmes, clé de page vide, déclaration du composant de titre, retrait de l'offre, compteur de changements, liens d'accessibilité…) ou est documentée comme équivalente.
+
+### Écarts par rapport au dossier
+
+1. **ARC-STU-01 à 03 et la section 8.1 du cahier des charges (les cinq zones) ne sont pas dans le dossier** : l'ADR-0037 écrit la lecture retenue (état normalisé, commandes annulables, événements et autosave ; barre du haut, navigation, travail, inspecteur, panneau). À corriger si le texte d'origine la contredit.
+2. **Pas de version en mémoire du `ProjectStore`** : l'ADR l'annonçait, elle aurait dupliqué les règles ; le Studio teste sur le vrai adaptateur avec fake-indexeddb.
+3. **`EVT-PROJECT-SAVED` n'existe pas** : le statut de la sauvegarde dit la même chose.
+4. **Seules `CMD-PROJECT-UPDATE` et `CMD-PAGE-*` existent** : EF-UI-06 vise « toutes les commandes de conception » ; celles du schéma (lot 6) et du canvas (lot 7) s'ajouteront au même bus.
+5. **Historique de 500 commandes, non conservé au rechargement** : seul l'état l'est.
+6. **Le thème (celui du système de design) et le mode de stockage (`local` au MVP) ne se choisissent pas à la création.**
+7. **Les problèmes du panneau de validation sont ceux des schémas, en anglais** : un libellé français par motif viendra avec le validateur du lot 13.
+8. **Le contrôle `axe-core`** est exécuté dans les trois navigateurs (étape 8) et non en test unitaire : ses règles de contraste et de mise en page demandent un vrai moteur de rendu.
+9. **Le lot touche des paquets du lot 4** (`domain` : le port ; `data-repository` : l'adaptateur) sans changer leurs règles de dépendance.
+
+### Dette et points ouverts
+
+- **Perte possible de moins de 2 secondes** si l'onglet se ferme (IndexedDB est asynchrone) ; atténuée par l'enregistrement au passage en arrière-plan et à `pagehide`. Le comportement de `pagehide` dans Safari n'a pas été vérifié dans un vrai navigateur.
+- **Après un conflit** (un autre onglet a enregistré avant), la session ne propose pas encore de recharger le projet de l'autre onglet ; les changements sont gardés en brouillon.
+- **Supprimer une page ne nettoie ni les gardes ni les actions** d'un paquet importé qui la visent (le projet devient invalide) ; aucune commande du lot n'en crée. À traiter aux lots 6 et 7.
+- **Une corbeille dont la date est illisible n'est jamais vidée** (choix prudent).
+- **Focus** après la suppression d'une page ou un bouton qui se désactive : non mesuré.
+- **Aides de test** (rendu, clic, attente) en double dans les tests de `shell` et de `recovery` ; `apps/studio/test-kit` les regroupe pour les suivants.
+- **Toujours ouverts depuis les lots précédents** : pas de contrôle des licences, `osv-scanner` jamais exécuté (avertissement), pas de CI, Node 26 non LTS, captures de référence en `win32`, `pnpm --filter <paquet> test` échoue pour les paquets sans configuration Vitest locale.
+
+### Erreurs reconnues
+
+- **L'ADR affirmait que rien n'était perdu ni écrasé, sans test qui le prouve** : la revue a montré le contraire par quatre sondes. Chaque garantie de l'ADR a maintenant son test.
+- **Mes premiers tests de la modification pendant une lecture passaient par hasard** (la modification tombait avant la première sauvegarde) ; déplacés pour tomber pendant la lecture.
+- **Le sabotage « clavier mort » de la gate n'était pas pur** : il laissait le navigateur exécuter son propre « annuler » sur un champ de texte, ce qui défaisait un renommage ; j'avais d'abord soupçonné un défaut du produit, un test jetable a montré que non.
+- **Le mode série de Playwright** cachait les faits qu'un contrôle devait lire (et le mode par défaut relançait le scénario : sept minutes pour un contrôle) ; les faits sont jugés dans un seul test par des assertions nommées.
+- **Un volet de test sans focus de document** fait que `blur()` n'émet rien : j'y ai lu un défaut qui n'en était pas un.
+- **Des mutations lancées avec des motifs mal échappés** (accents graves de PowerShell, texte reformaté par Prettier) ont d'abord paru survivre ou introuvables ; rejouées correctement.
+
 ## [0.4.0] — Lot 4 « Données locales » — 2026-10-04
 
 Tag proposé : **`v0.4.0`** (non posé : à créer après validation du lot). Exigences : EF-DAT-02, EF-DAT-03, EF-DAT-06, EF-BND-03 (moteur), RG-02, RG-04.
